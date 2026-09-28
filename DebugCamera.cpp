@@ -78,7 +78,7 @@ void DebugCamera::UpdateFreeRoam(InputManager& input)
 		SetCursorPos(640, 360);
 		//SetPhysicalCursorPos(640, 360);
 	}
-}
+} //11
 
 /// <summary>
 /// Pivot(周回)モード: 注視点を中心に、rotation_を軌道角として周回する。
