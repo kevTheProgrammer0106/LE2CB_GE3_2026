@@ -1311,8 +1311,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 	Log("Complete create D3D12Device!!!\n"); //初期化完了のログを出す
 
-#ifdef _DEBUG
-
 	Microsoft::WRL::ComPtr<IXAudio2> xAudio2;
 	IXAudio2MasteringVoice* masteringVoice;
 	//xAudioエンジンのインスタンスを生成
@@ -1330,7 +1328,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	InputManager input;
 	input.Initialize(hwnd, wc.hInstance);
 
-
+#ifdef _DEBUG
 	Microsoft::WRL::ComPtr<ID3D12InfoQueue> infoQueue = nullptr;
 	if ( SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&infoQueue))) )
 	{
