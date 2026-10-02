@@ -713,7 +713,7 @@ void DrawRenderObjectImGui(const char* label, RenderObject& obj)
 
 	ImGui::PopID();
 }
-#endif
+
 
 void EnableCamera(bool& useDebugCamera, Camera& camera, DebugCamera& debugCamera)
 {
@@ -768,7 +768,7 @@ void EnableCamera(bool& useDebugCamera, Camera& camera, DebugCamera& debugCamera
 		}
 	}
 }
-
+#endif
 // Windowアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 {
@@ -1074,6 +1074,19 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	D3D12_BLEND_DESC blendDesc{};
 	//すべての色要素を書き込む
 	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	blendDesc.RenderTarget[0].BlendEnable = TRUE;
+
+	//RGB
+	blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA; // ソースのアルファ値
+	blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD; // 加算
+	blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA; // 1.0f - ソースのアルファ
+
+	// Alpha
+	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE; // ソースのアルファ値
+	blendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	blendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO; // 0.0f
+
+
 
 	// RasterizerStateの設定
 	D3D12_RASTERIZER_DESC rasterizerDesc{};
