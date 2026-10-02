@@ -25,14 +25,17 @@
 
 #include "WorldTransform.h"
 #include "ResourceObject.h"
+#include"Particle.h"
 #include "SoundManager.h"
 #include "InputManager.h"
 #include "DebugCamera.h"
 #include "Camera.h"
 #include "ModelLoader.h"
 
+
 #include <unordered_map>
 #include <vector>
+#include <cstring>
 
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
@@ -44,7 +47,11 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 #include<wrl.h>
 using Microsoft::WRL::ComPtr;
 
-
+enum class DrawMode
+{
+	Model,
+	Particles
+};
 enum class ModelNode : int32_t
 {
 	Sphere = 0,
@@ -1081,7 +1088,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD; // 加算
 	blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA; // 1.0f - ソースのアルファ
 
-	// Alpha
+	// 
 	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE; // ソースのアルファ値
 	blendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
 	blendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO; // 0.0f
@@ -1134,6 +1141,40 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> graphicsPipelineState = nullptr;
 	hr = device->CreateGraphicsPipelineState(&graphicsPipelineStateDesc, IID_PPV_ARGS(&graphicsPipelineState));
 	assert(SUCCEEDED(hr));
+
+# pragma region パーティクル用のPSOを作る
+	ID3D12PipelineState* modelPipelineStates[static_cast< int >( ParticleBlendMode::Count_ )] = {};
+	ID3D12PipelineState* particlePipelineStates[static_cast< int >( ParticleBlendMode::Count_ )] = {};
+
+	for ( int i = 0; i < static_cast< int >(ParticleBlendMode::Count_); ++i )
+	{
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = graphicsPipelineStateDesc;
+		psoDesc.BlendState =
+			CreateParticleBlendDesc(static_cast< ParticleBlendMode >(i));
+
+		HRESULT hr = device->CreateGraphicsPipelineState(
+			&psoDesc,
+			IID_PPV_ARGS(&modelPipelineStates[i]));
+		assert(SUCCEEDED(hr));
+	}
+	D3D12_DEPTH_STENCIL_DESC particleDepthDesc{};
+	particleDepthDesc.DepthEnable = TRUE;
+	particleDepthDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	particleDepthDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+
+	for ( int i = 0; i < static_cast< int >(ParticleBlendMode::Count_); ++i )
+	{
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = graphicsPipelineStateDesc;
+		psoDesc.DepthStencilState = particleDepthDesc;
+		psoDesc.BlendState =
+			CreateParticleBlendDesc(static_cast< ParticleBlendMode >(i));
+
+		HRESULT hr = device->CreateGraphicsPipelineState(
+			&psoDesc,
+			IID_PPV_ARGS(&particlePipelineStates[i]));
+		assert(SUCCEEDED(hr));
+	}
+#pragma endregion
 
 	int vertexSpriteSize = 4;
 	int indexSize = 6;
@@ -1242,6 +1283,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	DebugCamera debugCamera;
 	// ゲームのビューを行うカメラ
 	Camera camera;
+	debugCamera.Initialize();
+	camera.Initialize();
 	TransformData spriteTransform{ { 1.0f, 1.0f, 1.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f } };
 	TransformData uvTransformSpriteQuad
 	{
@@ -1275,6 +1318,58 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGpu = GetGPUDescriptorHandle(srvDescriptorHeap.Get(), descriptorSizeSRV, 1);
 	device->CreateShaderResourceView(textureResourceSprite.Get(), &srvDescSprite, textureSrvHandleCpu);
 
+#pragma region パーティクルテクスチャ
+
+// パーティクル用テクスチャを読み込む
+	DirectX::ScratchImage mipImagesParticle =
+		LoadTexture("resources/particle.jpg");
+
+	const DirectX::TexMetadata& metaDataParticle =
+		mipImagesParticle.GetMetadata();
+
+	ResourceObject textureResourceParticle =
+		CreateTextureResource(
+			device.Get(),
+			metaDataParticle);
+
+	ResourceObject intermediateResourceParticle =
+		UploadTextureData(
+			textureResourceParticle.Get(),
+			mipImagesParticle,
+			device.Get(),
+			commandList.Get());
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDescParticle{};
+	srvDescParticle.Format = metaDataParticle.format;
+	srvDescParticle.Shader4ComponentMapping =
+		D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDescParticle.ViewDimension =
+		D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDescParticle.Texture2D.MipLevels =
+		UINT(metaDataParticle.mipLevels);
+
+	// 次に使用するSRV番号をパーティクル用に確保する
+	D3D12_CPU_DESCRIPTOR_HANDLE particleTextureSrvHandleCpu =
+		GetCPUDescriptorHandle(
+			srvDescriptorHeap.Get(),
+			descriptorSizeSRV,
+			nextSrvIndex);
+
+	D3D12_GPU_DESCRIPTOR_HANDLE particleTextureSrvHandleGpu =
+		GetGPUDescriptorHandle(
+			srvDescriptorHeap.Get(),
+			descriptorSizeSRV,
+			nextSrvIndex);
+
+	device->CreateShaderResourceView(
+		textureResourceParticle.Get(),
+		&srvDescParticle,
+		particleTextureSrvHandleCpu);
+
+	++nextSrvIndex;
+
+#pragma endregion
+
 	// 9種類のモデル(球, 平面, 軸, うさぎ, 複数マテリアル, 複数メッシュ, スザンヌ, ティーポット, ユタティーポット)を
 	// まとめて読み込んでキャッシュしておく
 	std::unordered_map<ModelNode, ModelResource> modelResources;
@@ -1293,16 +1388,24 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	// アップロード用の中間リソースはもう不要
 	keepAliveIntermediates.clear();
 	intermediateResourceSprite.Reset();
+	intermediateResourceParticle.Reset();
 
-	// 2つの描画オブジェクトを用意する。片方はSphere、もう片方はPlaneをデフォルトにしておく
 	RenderObject object1;
 	object1.modelNode = ModelNode::Sphere;
 	InitRenderObject(object1, device.Get());
 
 	RenderObject object2;
 	object2.modelNode = ModelNode::Plane;
-	object2.transform.translate = { 3.0f, 0.0f, 0.0f, 0.0f }; // 見やすいように少しずらしておく
+	object2.transform.translate = { 3.0f, 0.0f, 0.0f, 0.0f };
 	InitRenderObject(object2, device.Get());
+
+	// パーティクルエミッタを初期化する
+	ParticleEmitter emitter;
+	emitter.Initialize(device.Get());
+	emitter.config.position = { 0.0f, 0.0f, 35.0f, 1.0f };
+
+	ParticleBlendMode modelBlendMode = ParticleBlendMode::None;
+	DrawMode currentMode = DrawMode::Model;
 
 #ifdef USE_IMGUI
 	// ImGuiの初期化。詳細はさして重要ではないので解説を省略する。
@@ -1418,29 +1521,42 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			//指定した深度で画面全体をクリアする
 			commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
+			// カメラは共通で1つ。Update()はview/projectionを更新するために呼ぶだけで、
+			// worldMatrix引数はここでは使わない(各オブジェクトのWVPは自前で組み立てるため)。
+			// GetViewProjectionMatrix()はworldMatrixに依存せずview*projectionだけを返してくれる。
 			// --- カメラ更新 --- //
 			if ( input.TriggerKey(DIK_F1) )
 			{
 				useDebugCamera = !useDebugCamera;
 			}
 
-			// カメラは共通で1つ。Update()はview/projectionを更新するために呼ぶだけで、
-			// worldMatrix引数はここでは使わない(各オブジェクトのWVPは自前で組み立てるため)。
-			// GetViewProjectionMatrix()はworldMatrixに依存せずview*projectionだけを返してくれる。
+			Matrix4x4 viewMatrix = MakeIdentityMatrix();
+			Matrix4x4 projectionMatrix = MakeIdentityMatrix();
 			Matrix4x4 viewProjection = MakeIdentityMatrix();
 			if ( useDebugCamera )
 			{
 				debugCamera.Update(MakeIdentityMatrix(), input);
-				viewProjection = debugCamera.GetViewProjectionMatrix();
+				viewMatrix = debugCamera.GetViewMatrix();
+				projectionMatrix = debugCamera.GetProjectionMatrix();
 			} else
 			{
 				camera.Update(MakeIdentityMatrix());
-				viewProjection = camera.GetViewProjectionMatrix();
+				viewMatrix = camera.GetViewMatrix();
+				projectionMatrix = camera.GetProjectionMatrix();
 			}
+			viewProjection = Multiply(viewMatrix, projectionMatrix);
 
 			// --- オブジェクト更新 --- //
-			UpdateRenderObject(object1, viewProjection);
-			UpdateRenderObject(object2, viewProjection);
+			if ( currentMode == DrawMode::Model )
+			{
+				UpdateRenderObject(object1, viewProjection);
+				UpdateRenderObject(object2, viewProjection);
+			} else
+			{
+				// パーティクルを更新する
+				float deltaTime = 1.0f / 60.0f;
+				emitter.Update(deltaTime);
+			}
 
 			// Sprite用のWorldViewProjectionMatrixを作る
 			Matrix4x4 worldMatrixSprite = MakeAffineMatrix(spriteTransform.scale, spriteTransform.rotate, spriteTransform.translate);
@@ -1456,21 +1572,27 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			materialDataSpriteQuad->uvTransform = uvTransformMatrixQuad;
 
 			// --- オブジェクト描画 --- //
-			commandList->RSSetViewports(1, &viewport); // Viewportを設定
-			commandList->RSSetScissorRects(1, &scissorRect); // Scissorを設定
-			//RootSignatureを設定、PSOに設定しているけど別途設定が必要
+			commandList->RSSetViewports(1, &viewport);
+			commandList->RSSetScissorRects(1, &scissorRect);
 			commandList->SetGraphicsRootSignature(rootSignature.Get());
-			commandList->SetPipelineState(graphicsPipelineState.Get()); // PSOを設定
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-			//描画用のDescriptorHeapの設定
+			// 描画用のDescriptorHeapを設定する
 			ID3D12DescriptorHeap* descriptorHeaps[] = { srvDescriptorHeap.Get() };
 			commandList->SetDescriptorHeaps(1, descriptorHeaps);
+			if ( currentMode == DrawMode::Model )
+			{
+				// ------------------------------------------------
+				// モデル描画
+				// ------------------------------------------------
+				commandList->SetPipelineState(modelPipelineStates[ static_cast< int >(modelBlendMode)]);
+				DrawRenderObject(commandList.Get(), object1, modelResources, directionalLightResource.Get());
+				DrawRenderObject(commandList.Get(), object2, modelResources, directionalLightResource.Get());
+			} else
+			{
+				emitter.Draw(commandList.Get(), viewMatrix, projectionMatrix, particleTextureSrvHandleGpu, particlePipelineStates);
+			}
 
-			// 2つのオブジェクトをそれぞれ選択中のモデルで描画する
-			DrawRenderObject(commandList.Get(), object1, modelResources, directionalLightResource.Get());
-			DrawRenderObject(commandList.Get(), object2, modelResources, directionalLightResource.Get());
-
+			commandList->SetPipelineState(graphicsPipelineState.Get());
 			// --- スプライトの描画 --- //
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSpriteQuad); // VBVを設定
 			commandList->SetGraphicsRootConstantBufferView(0, materialResourceSpriteQuad.Get()->GetGPUVirtualAddress());
@@ -1492,39 +1614,87 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			ImGui::Begin("Debug");
 
 			EnableCamera(useDebugCamera, camera, debugCamera);
-
-			ImGui::Separator();
-			DrawRenderObjectImGui("Object 1", object1);
-			ImGui::Separator();
-			DrawRenderObjectImGui("Object 2", object2);
 			ImGui::Separator();
 
-			ImGui::Text("Directional Light Settings");
-			ImGui::ColorEdit4("Light Color", &directionalLight->color.x);
-			ImGui::DragFloat3("Light Direction", &directionalLight->direction.x, 0.1f);
-			ImGui::DragFloat("Light Intensity", &directionalLight->intensity, 0.1f);
+			ImGui::Text("Draw Mode");
+
+			if ( ImGui::RadioButton("Model", currentMode == DrawMode::Model) )
+			{
+				currentMode = DrawMode::Model;
+			}
+			ImGui::SameLine();
+			if ( ImGui::RadioButton("Particles", currentMode == DrawMode::Particles) )
+			{
+				currentMode = DrawMode::Particles;
+			}
+
+			if ( currentMode == DrawMode::Model )
+			{
+				ImGui::Text("Model");
+				int modelBlendModeIndex = static_cast< int >( modelBlendMode );
+				ImGui::Combo("Blend Mode", &modelBlendModeIndex, "None\0Normal\0Add\0Subtract\0Multiply\0Screen\0Exclusion\0");
+				// モデルのブレンドモードを変更する
+				{
+				modelBlendMode = static_cast< ParticleBlendMode >( modelBlendModeIndex );
+				}
+
+				DrawRenderObjectImGui( "Object 1", object1);
+				ImGui::Separator();
+				DrawRenderObjectImGui( "Object 2", object2);
+				ImGui::Separator();
+				ImGui::Text( "Directional Light Settings"); 
+				ImGui::ColorEdit4( "Light Color", &directionalLight->color.x);
+				ImGui::DragFloat3( "Light Direction", &directionalLight->direction.x, 0.1f);
+				ImGui::DragFloat( "Light Intensity", &directionalLight->intensity, 0.1f);
 
 #pragma region Sprite
-			ImGui::Separator();
-			if ( ImGui::Button("Enable Sprite") )
-			{
-				enableSprite = true;
-			}
-			if ( ImGui::Button("Disable Sprite") )
-			{
-				enableSprite = false;
-			}
-			if ( enableSprite )
-			{
-				ImGui::Text("Sprite Settings");
-				ImGui::DragFloat3("Sprite Scale", &spriteTransform.scale.x, 0.1f);
-				ImGui::DragFloat3("Sprite Rotate", &spriteTransform.rotate.x, 0.1f);
-				ImGui::DragFloat3("Sprite Translate", &spriteTransform.translate.x, 0.1f);
-				ImGui::DragFloat2("UV Translate", &uvTransformSpriteQuad.translate.x, 0.1f, -10.0f, 10.0f);
-				ImGui::DragFloat2("UV Scale", &uvTransformSpriteQuad.scale.x, 0.1f, -10.0f, 10.0f);
-				ImGui::SliderAngle("UV Rotate", &uvTransformSpriteQuad.rotate.z);
-			}
+				ImGui::Separator();
+				if ( ImGui::Button("Enable Sprite") )
+				{
+					enableSprite = true;
+				}
+				if ( ImGui::Button("Disable Sprite") )
+				{
+					enableSprite = false;
+				}
+				if ( enableSprite )
+				{
+					ImGui::Text("Sprite Settings");
+					ImGui::DragFloat3("Sprite Scale", &spriteTransform.scale.x, 0.1f);
+					ImGui::DragFloat3("Sprite Rotate", &spriteTransform.rotate.x, 0.1f);
+					ImGui::DragFloat3("Sprite Translate", &spriteTransform.translate.x, 0.1f);
+					ImGui::DragFloat2("UV Translate", &uvTransformSpriteQuad.translate.x, 0.1f, -10.0f, 10.0f);
+					ImGui::DragFloat2("UV Scale", &uvTransformSpriteQuad.scale.x, 0.1f, -10.0f, 10.0f);
+					ImGui::SliderAngle("UV Rotate", &uvTransformSpriteQuad.rotate.z);
+				}
 #pragma endregion
+			}
+			if ( currentMode == DrawMode::Particles )
+			{
+				ImGui::Separator();
+				ImGui::Text("Particle Emitter");
+				int blendMode = static_cast< int >( emitter.config.blendMode );
+				if ( ImGui::Combo("Blend Mode", &blendMode, "None\0" "Normal\0" "Add\0" "Subtract\0" "Multiply\0" "Screen\0" "Exclusion\0") )
+				{
+					emitter.config.blendMode = static_cast< ParticleBlendMode >( blendMode );
+				}
+
+				ImGui::DragFloat3("Emitter Position", &emitter.config.position.x, 0.1f);
+				ImGui::ColorEdit4("Color Start", &emitter.config.colorStart.x);
+				ImGui::ColorEdit4("Color End", &emitter.config.colorEnd.x);
+				ImGui::DragFloat("Emit Rate", &emitter.config.emitRate, 0.5f, 0.1f, 256.0f);
+				ImGui::DragFloat("Lifetime Min", &emitter.config.lifetimeMin, 0.1f, 0.1f, 60.0f);
+				ImGui::DragFloat( "Lifetime Max", &emitter.config.lifetimeMax, 0.1f, 0.1f, 60.0f);
+				ImGui::DragFloat( "Speed Min", &emitter.config.speedMin, 0.1f, 0.0f, 20.0f);
+				ImGui::DragFloat( "Speed Max", &emitter.config.speedMax, 0.1f, 0.0f, 20.0f);
+				ImGui::DragFloat( "Size Start", &emitter.config.sizeStart, 0.01f, 0.0f, 10.0f);
+				ImGui::DragFloat( "Size End", &emitter.config.sizeEnd, 0.01f, 0.0f, 10.0f);
+				ImGui::Checkbox( "Looping", &emitter.config.looping);
+				if ( ImGui::Button("Burst (64)") )
+				{
+					emitter.Emit(64);
+				}
+			}
 
 			ImGui::End();
 			//ImGuiの内部コマンドを生成する
@@ -1573,6 +1743,24 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	fence->SetEventOnCompletion(fenceValue, fenceEvent);
 	WaitForSingleObject(fenceEvent, INFINITE);
 
+	// パーティクル用PSOを解放する
+	for ( int i = 0; i < static_cast< int >(ParticleBlendMode::Count_); ++i )
+	{
+		if ( modelPipelineStates[i] )
+		{
+			modelPipelineStates[i]->Release();
+			modelPipelineStates[i] = nullptr;
+		}
+
+		if ( particlePipelineStates[i] )
+		{
+			particlePipelineStates[i]->Release();
+			particlePipelineStates[i] = nullptr;
+		}
+	}
+
+	emitter.Shutdown();
+
 #ifdef USE_IMGUI
 	ImGui_ImplDX12_Shutdown();
 	ImGui_ImplWin32_Shutdown();
@@ -1581,9 +1769,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	// gpuが処理を終えるのを待ってからリソースを解放する
 	CloseHandle(fenceEvent);
 
-	modelResources.clear();
 	keepAliveIntermediates.clear();
-
+	intermediateResourceSprite.Reset();
 
 	//XAudio2解放
 	xAudio2.Reset();
