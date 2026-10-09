@@ -55,7 +55,7 @@ float ParticleEmitter::RandomFloat(float min, float max)
 // 球面座標（theta, phi）を使ってランダムな3D方向を生成する
 Vector4 ParticleEmitter::RandomVelocity(float speed)
 {
-    float theta = RandomFloat(0.0f, (float(M_PI))); // 水平角（0〜2π）
+    float theta = RandomFloat(0.0f, (float(M_PI * 2))); // 水平角（0〜2π）
     float phi = RandomFloat(0.0f, float(M_PI)); // 仰角（0〜π）
     return { sinf(phi) * cosf(theta) * speed, speed * 2.0f, cosf(phi) * sinf(theta) * speed, 0.0f};
 }
@@ -126,8 +126,7 @@ void ParticleEmitter::Initialize(ID3D12Device* device)
         // WVP 行列バッファ：単位行列で初期化
         wvpResources_[i] = CreateUploadBuffer(device, sizeof(TransformationMatrix));
         HRESULT hr = wvpResources_[i].Get()->Map( 0, nullptr, reinterpret_cast< void** >(&wvpData_[i]));
-        wvpResources_[i].Get()->Map(0, nullptr, reinterpret_cast<void**>(&wvpData_[i]));
-        
+
         assert(SUCCEEDED(hr));
 
         wvpData_[i]->WVP = MakeIdentityMatrix();

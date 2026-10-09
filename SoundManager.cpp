@@ -79,22 +79,71 @@ void SoundUnload(SoundData* soundData)
 	soundData->wfex = {};
 }
 
-void SoundPlayWave(IXAudio2* xAudio2, const SoundData& soundData)
+void SoundPlayWave( IXAudio2* xAudio2, const SoundData& soundData, IXAudio2SourceVoice*& pSourceVoice)
 {
-	HRESULT result;
+	assert(xAudio2 != nullptr);
+	assert(soundData.pBuffer != nullptr);
 
-	//波形フォーマットを元にSourceVoiceの生成
-	IXAudio2SourceVoice* pSourceVoice = nullptr;
-	result = xAudio2->CreateSourceVoice(&pSourceVoice, &soundData.wfex);
+	// 同じボイスが残っている場合は、先に破棄する
+	if ( pSourceVoice != nullptr )
+	{
+		pSourceVoice->Stop(0);
+		pSourceVoice->FlushSourceBuffers();
+		pSourceVoice->DestroyVoice();
+		pSourceVoice = nullptr;
+	}
+
+	// 音声データのフォーマットに合わせてボイスを生成する
+	HRESULT result =
+		xAudio2->CreateSourceVoice(&pSourceVoice, &soundData.wfex);
+
+	assert(SUCCEEDED(result));
+	if ( FAILED(result) )
+	{
+		pSourceVoice = nullptr;
+		return;
+	}
+
+	// 再生する波形データを設定する
+	XAUDIO2_BUFFER buffer{};
+	buffer.pAudioData = soundData.pBuffer;
+	buffer.AudioBytes = soundData.bufferSize;
+	buffer.Flags = XAUDIO2_END_OF_STREAM;
+
+	result = pSourceVoice->SubmitSourceBuffer(&buffer);
+	if ( FAILED(result) )
+	{
+		pSourceVoice->DestroyVoice();
+		pSourceVoice = nullptr;
+		return;
+	}
+
+	// 音声の再生を開始する
+	result = pSourceVoice->Start(0);
+	if ( FAILED(result) )
+	{
+		pSourceVoice->DestroyVoice();
+		pSourceVoice = nullptr;
+	}
+}
+
+void SoundStopWave(IXAudio2SourceVoice*& pSourceVoice)
+{
+	// ボイスが存在しなければ何もしない
+	if ( pSourceVoice == nullptr )
+	{
+		return;
+	}
+
+	// 再生を停止する
+	HRESULT result = pSourceVoice->Stop(0);
 	assert(SUCCEEDED(result));
 
-	// 再生する波形データの設定
-	XAUDIO2_BUFFER buf{};
-	buf.pAudioData = soundData.pBuffer;
-	buf.AudioBytes = soundData.bufferSize;
-	buf.Flags = XAUDIO2_END_OF_STREAM;
+	// 再生待ちのバッファをキューから削除する
+	result = pSourceVoice->FlushSourceBuffers();
+	assert(SUCCEEDED(result));
 
-	// 波形データの再生
-	result = pSourceVoice->SubmitSourceBuffer(&buf);
-	result = pSourceVoice->Start();
+	// ボイスを破棄して、ポインタを無効化する
+	pSourceVoice->DestroyVoice();
+	pSourceVoice = nullptr;
 }

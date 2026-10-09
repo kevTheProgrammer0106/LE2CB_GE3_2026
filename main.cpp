@@ -1278,13 +1278,16 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	transformationMatrixDataSprite->World = MakeIdentityMatrix();
 
 	bool enableSprite = false;
-
-	// デバッグを行うカメラ
-	DebugCamera debugCamera;
 	// ゲームのビューを行うカメラ
-	Camera camera;
-	debugCamera.Initialize();
-	camera.Initialize();
+	Camera* camera = nullptr;
+	// デバッグを行うカメラ
+	DebugCamera* debugCamera = nullptr;
+
+	camera = new Camera();
+	debugCamera = new DebugCamera();
+	
+	debugCamera->Initialize();
+	camera->Initialize();
 	TransformData spriteTransform{ { 1.0f, 1.0f, 1.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f } };
 	TransformData uvTransformSpriteQuad
 	{
@@ -1436,10 +1439,11 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	hr = xAudio2->CreateMasteringVoice(&masteringVoice);
 	assert(SUCCEEDED(hr));
 
+	IXAudio2SourceVoice* sourceVoice = nullptr;
 	//音声読み込み
 	SoundData soundData1 = SoundLoadWave("resources/WaltzOfFlowers.wav");
 	// 音声再生
-	SoundPlayWave(xAudio2.Get(), soundData1);
+	SoundPlayWave(xAudio2.Get(), soundData1, sourceVoice);
 
 	InputManager input;
 	input.Initialize(hwnd, wc.hInstance);
@@ -1535,14 +1539,14 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			Matrix4x4 viewProjection = MakeIdentityMatrix();
 			if ( useDebugCamera )
 			{
-				debugCamera.Update(MakeIdentityMatrix(), input);
-				viewMatrix = debugCamera.GetViewMatrix();
-				projectionMatrix = debugCamera.GetProjectionMatrix();
+				debugCamera->Update(MakeIdentityMatrix(), input);
+				viewMatrix = debugCamera->GetViewMatrix();
+				projectionMatrix = debugCamera->GetProjectionMatrix();
 			} else
 			{
-				camera.Update(MakeIdentityMatrix());
-				viewMatrix = camera.GetViewMatrix();
-				projectionMatrix = camera.GetProjectionMatrix();
+				camera->Update(MakeIdentityMatrix());
+				viewMatrix = camera->GetViewMatrix();
+				projectionMatrix = camera->GetProjectionMatrix();
 			}
 			viewProjection = Multiply(viewMatrix, projectionMatrix);
 
@@ -1613,7 +1617,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			ImGui::ShowDemoWindow();
 			ImGui::Begin("Debug");
 
-			EnableCamera(useDebugCamera, camera, debugCamera);
+			EnableCamera(useDebugCamera, *camera, *debugCamera);
 			ImGui::Separator();
 
 			ImGui::Text("Draw Mode");
@@ -1771,11 +1775,15 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 	keepAliveIntermediates.clear();
 	intermediateResourceSprite.Reset();
+	delete debugCamera;
+	delete camera;
 
+	SoundStopWave(sourceVoice);
 	//XAudio2解放
 	xAudio2.Reset();
 	//音声委データ解放
 	SoundUnload(&soundData1);
+
 
 	CoUninitialize(); //COMの終了処理
 	//ImGuiの終了処理。詳細はさひて重要ではないので解決は省略する。

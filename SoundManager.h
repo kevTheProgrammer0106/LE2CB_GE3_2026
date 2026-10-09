@@ -52,7 +52,9 @@ SoundData SoundLoadWave(const char* fileName);
 void SoundUnload(SoundData* soundData);
 
 // 音声再生
-void SoundPlayWave(IXAudio2* xAudio2, const SoundData& soundData);
+void SoundPlayWave(IXAudio2* xAudio2, const SoundData& soundData, IXAudio2SourceVoice*& pSourceVoice);
+
+void SoundStopWave(IXAudio2SourceVoice*& pSourceVoice);
 
 class SoundManager{};
 
