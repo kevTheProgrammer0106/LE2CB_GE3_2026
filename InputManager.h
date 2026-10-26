@@ -7,13 +7,14 @@
 #pragma comment(lib, "dxguid.lib")
 
 #include "WorldTransform.h"
+#include "WinApp.h"
 
 #include<wrl.h>
 
 class InputManager
 {
 public:
-	void Initialize(HWND hwnd, HINSTANCE instance);
+	void Initialize(WinApp* winApp);
 	void Update();
 
 	bool PushKey(BYTE key) const;
@@ -43,4 +44,7 @@ private:
 
 	DIMOUSESTATE2 mouseState_{};
 	DIMOUSESTATE2 preMouseState_{};
+
+	// WindowsAPI
+	WinApp* winApp = nullptr;
 };

@@ -1,9 +1,12 @@
 #include "InputManager.h"
 
-void InputManager::Initialize(HWND hwnd, HINSTANCE instance)
+void InputManager::Initialize(WinApp* winApp)
 {
+	// 借りてきたWinAppのインスタンスを記録
+	this->winApp = winApp;
+
 	// DirectInputの初期化
-	HRESULT hr = DirectInput8Create(instance, DIRECTINPUT_VERSION, IID_IDirectInput8,
+	HRESULT hr = DirectInput8Create(winApp->GetHInstance(), DIRECTINPUT_VERSION, IID_IDirectInput8,
 		(void**)&directInput_, nullptr);
 	assert(SUCCEEDED(hr));
 
@@ -12,7 +15,7 @@ void InputManager::Initialize(HWND hwnd, HINSTANCE instance)
 	assert(SUCCEEDED(hr));
 	hr = keyboard_->SetDataFormat(&c_dfDIKeyboard);
 	assert(SUCCEEDED(hr));
-	hr = keyboard_->SetCooperativeLevel(hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY);
+	hr = keyboard_->SetCooperativeLevel(winApp->GetHwnd(), DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY);
 	assert(SUCCEEDED(hr));
 
 	// マウスデバイスの生成
@@ -21,7 +24,7 @@ void InputManager::Initialize(HWND hwnd, HINSTANCE instance)
 	hr = mouse_->SetDataFormat(&c_dfDIMouse2); // lX, lY, lZ, rgbButtons[4] が使える形式
 	assert(SUCCEEDED(hr));
 	// マウスは非排他・フォアグラウンド。カーソルを隠したくなったらDISCL_EXCLUSIVEに変更を検討
-	hr = mouse_->SetCooperativeLevel(hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE);
+	hr = mouse_->SetCooperativeLevel(winApp->GetHwnd(), DISCL_FOREGROUND | DISCL_NONEXCLUSIVE);
 	assert(SUCCEEDED(hr));
 }
 

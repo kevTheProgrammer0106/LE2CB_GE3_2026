@@ -1,5 +1,4 @@
 #include <Windows.h>
-#include <cstdint>
 
 #include <string>
 #include <format>
@@ -23,6 +22,7 @@
 #include <dxcapi.h>
 #pragma comment(lib, "dxcompiler.lib")
 
+#include "WinApp.h"
 #include "WorldTransform.h"
 #include "ResourceObject.h"
 #include"Particle.h"
@@ -619,31 +619,6 @@ struct RenderObject
 	ResourceObject wvpResource;
 	TransformationMatrix* wvpData = nullptr;
 };
-
-//ウィンドウプロシージャ
-LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
-{
-
-#ifdef USE_IMGUI
-	if ( ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam) )
-	{
-		return true;
-	}
-#endif
-	//メッセージに応じてゲーム固有の処理を行う
-	switch ( msg )
-	{
-		// ウィンドウが破棄されたときの処理
-		case WM_DESTROY:
-			// OSに対して、アプリケーションの終了を伝える
-			PostQuitMessage(0);
-			break;
-	}
-
-	//基準にメッセージ処理を行う
-	return DefWindowProc(hwnd, msg, wparam, lparam);
-}
-
 void InitRenderObject(RenderObject& obj, ID3D12Device* device)
 {
 	obj.materialResource = CreateBufferResource(device, sizeof(Material));
@@ -779,66 +754,19 @@ void EnableCamera(bool& useDebugCamera, Camera& camera, DebugCamera& debugCamera
 // Windowアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 {
-	CoInitializeEx(0, COINIT_MULTITHREADED); //マルチスレッドでCOMを利用するための初期化
+	HRESULT hr = CoInitializeEx(0, COINIT_MULTITHREADED); //マルチスレッドでCOMを利用するための初期化
 	//誰も補足しなかった場合に(Unhandled)、補足する関数を登録
 // main関数はじまってすぐに登録すると良い
 	SetUnhandledExceptionFilter(ExportDump);
 
 	D3DResourceLeakChecker leakCheck;
 
-	WNDCLASS wc{};
-	//ウィンドウプロシージャ
-	wc.lpfnWndProc = WindowProc;
-	// ウィンドウクラス名
-	wc.lpszClassName = L"GE3Window";
-	//インスタンスハンドル
-	wc.hInstance = GetModuleHandle(nullptr);
-	//カーソル
-	wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
+	//ポインタ
+	WinApp* winApp = nullptr;
 
-	RegisterClass(&wc);
-
-	//クライント領域のサイズ
-	const int32_t kClientWidth = 1280;
-	const int32_t kClientHeight = 720;
-
-	//ウィンドウサイズを表す構造体にクライアント領域を入れる
-	RECT wrc{ 0, 0, kClientWidth, kClientHeight };
-
-	//クライント領域を元に実際のサイズにwrcを変更してもらう
-	AdjustWindowRect(&wrc, WS_OVERLAPPEDWINDOW, FALSE);
-
-	HWND hwnd = CreateWindow(
-		wc.lpszClassName, //クラス名
-		L"LE2C_29_メンドーザ_ケビン_ラルフ_パレルモ", //タイトルバーの文字
-		WS_OVERLAPPEDWINDOW, //ウィンドウスタイル
-		CW_USEDEFAULT, //初期X座標
-		CW_USEDEFAULT, //初期Y座標
-		wrc.right - wrc.left, //ウィンドウ幅
-		wrc.bottom - wrc.top, //ウィンドウ高
-		nullptr, //親ウィンドウハンドル
-		nullptr, //メニューハンドル
-		wc.hInstance, //インスタンスハンドル
-		nullptr //追加パラメータ
-	);
-	assert(hwnd != nullptr);
-
-#ifdef _DEBUG
-
-	Microsoft::WRL::ComPtr<ID3D12Debug1> debugController = nullptr;
-	if ( SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))) )
-	{
-		//デバッグレイヤーを有効化する
-		debugController->EnableDebugLayer();
-		// さらにGPU側でもチェックを行うようにする
-		debugController->SetEnableGPUBasedValidation(TRUE);
-	}
-
-#endif
-
-
-	//ウィンドウの表示
-	ShowWindow(hwnd, SW_SHOW);
+	// WindowsAPIの初期化
+	winApp = new WinApp;
+	winApp->Initialize();
 
 	MSG msg{};
 
@@ -846,7 +774,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory = nullptr;
 	// HRESULTはWindows系のエラーコードであり、
 	//関数が成功したかどうかをSUCCEEDEDマクロで判定できる
-	HRESULT hr = CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory));
+	hr = CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory));
 	//初期化の根本的な部分でエラーが出た場合はプログラムが間違っているか、どうかにもできない場合が多いのでassertにしておく
 	assert(SUCCEEDED(hr));
 
@@ -918,15 +846,15 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	//スワップチェーンを生成する
 	Microsoft::WRL::ComPtr<IDXGISwapChain4> swapChain = nullptr;
 	DXGI_SWAP_CHAIN_DESC1 swapChainDesc{};
-	swapChainDesc.Width = kClientWidth; //画面の幅。ウィンドウのクライアント領域を同じものにしておく
-	swapChainDesc.Height = kClientHeight; //画面の高さ。ウィンドウのクライアント領域を同じものにしておく
+	swapChainDesc.Width = WinApp::kClientWidth; //画面の幅。ウィンドウのクライアント領域を同じものにしておく
+	swapChainDesc.Height = WinApp::kClientHeight; //画面の高さ。ウィンドウのクライアント領域を同じものにしておく
 	swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; //色の形式
 	swapChainDesc.SampleDesc.Count = 1; //マルチサンプリングしない
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT; // 描画のターゲットとして利用する
 	swapChainDesc.BufferCount = 2; //ダブルバッファ
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD; //モニタにうつしたら、中身を破棄
 	//コマンドキュー、ウィンドウハンドル、設定を渡して生成する
-	hr = dxgiFactory->CreateSwapChainForHwnd(commandQueue.Get(), hwnd, &swapChainDesc, nullptr, nullptr, reinterpret_cast< IDXGISwapChain1** >( swapChain.GetAddressOf() ));
+	hr = dxgiFactory->CreateSwapChainForHwnd(commandQueue.Get(), winApp->GetHwnd(), &swapChainDesc, nullptr, nullptr, reinterpret_cast< IDXGISwapChain1** >( swapChain.GetAddressOf() ));
 	assert(SUCCEEDED(hr));
 
 	//ディスクリプタヒープの生成
@@ -936,7 +864,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap = CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 128, true);
 
 	// DepthStencilTextureをウィンドウのサイズで作成
-	ResourceObject depthStencilResource = CreateDepthStencilTextureResource(device.Get(), kClientWidth, kClientHeight);
+	ResourceObject depthStencilResource = CreateDepthStencilTextureResource(device.Get(), WinApp::kClientWidth, WinApp::kClientHeight);
 
 	// DSV用のヒープでディスクリプタの数は1。DSVはShader内で触るものではないので、ShaderVisibleはfalse
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap = CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
@@ -1182,19 +1110,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	for ( int i = 0; i < static_cast< int >(ParticleBlendMode::Count_); ++i )
 	{
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = graphicsPipelineStateDesc;
-		psoDesc.DepthStencilState = particleDepthDesc;
-		psoDesc.BlendState =
-			CreateParticleBlendDesc(static_cast< ParticleBlendMode >(i));
-
-		HRESULT hr = device->CreateGraphicsPipelineState(
-			&psoDesc,
-			IID_PPV_ARGS(&particlePipelineStates[i]));
-		assert(SUCCEEDED(hr));
-	}
-
-	for ( int i = 0; i < static_cast< int >(ParticleBlendMode::Count_); ++i )
-	{
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = graphicsPipelineStateDesc;
 
 		// パーティクル専用のシェーダーを設定
 		psoDesc.VS = { particleVertexShaderBlob->GetBufferPointer(), particleVertexShaderBlob->GetBufferSize() };
@@ -1287,8 +1202,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	//ビューポート
 	D3D12_VIEWPORT viewport{};
 	//クライアント領域のサイズと一緒にして画面全体に表示
-	viewport.Width = kClientWidth;
-	viewport.Height = kClientHeight;
+	viewport.Width = static_cast<float>( WinApp::kClientWidth );
+	viewport.Height = static_cast<float>( WinApp::kClientHeight);
 	viewport.TopLeftX = 0;
 	viewport.TopLeftY = 0;
 	viewport.MinDepth = 0.0f;
@@ -1298,9 +1213,9 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	D3D12_RECT scissorRect{};
 	// 基本的にビューポートと同じ矩形が構成されようにする
 	scissorRect.left = 0;
-	scissorRect.right = kClientWidth;
+	scissorRect.right = WinApp::kClientWidth;
 	scissorRect.top = 0;
-	scissorRect.bottom = kClientHeight;
+	scissorRect.bottom = WinApp::kClientHeight;
 
 	// Sprite用のTransformationMatrix用のリソースを作る
 	ResourceObject transformationMatrixResourceSprite = CreateBufferResource(device.Get(), sizeof(TransformationMatrix));
@@ -1510,7 +1425,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGui::StyleColorsDark();
-	ImGui_ImplWin32_Init(hwnd);
+	ImGui_ImplWin32_Init(winApp->GetHwnd());
 	ImGui_ImplDX12_Init(
 		device.Get(), swapChainDesc.BufferCount,
 		rtvDesc.Format,
@@ -1541,7 +1456,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	SoundPlayWave(xAudio2.Get(), soundData1, sourceVoice);
 
 	InputManager input;
-	input.Initialize(hwnd, wc.hInstance);
+	input.Initialize(winApp);
 
 #ifdef _DEBUG
 	Microsoft::WRL::ComPtr<ID3D12InfoQueue> infoQueue = nullptr;
@@ -1574,22 +1489,16 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	}
 
 #endif
-	while ( msg.message != WM_QUIT )
+	while (true) // ゲームループ
 	{
-
-		// メッセージがあるか確認
-		if ( PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE) )
+		// Windowsのメッセージ処理
+		if ( winApp->ProcessMessage() )
 		{
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
+			// ゲームループを抜ける
+			break;
 		} else
 		{
 			input.Update();
-
-			if ( input.TriggerKey(DIK_0) )
-			{
-				OutputDebugStringA("Hit 0\n");
-			}
 
 			//これから書き込みバックァのインデックスを取得
 			UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
@@ -1660,7 +1569,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			// Sprite用のWorldViewProjectionMatrixを作る
 			Matrix4x4 worldMatrixSprite = MakeAffineMatrix(spriteTransform.scale, spriteTransform.rotate, spriteTransform.translate);
 			Matrix4x4 viewMatrixSprite = MakeIdentityMatrix(); // スプライトはカメラの影響を受けないので、ビュー行列は単位行列にする
-			Matrix4x4 projectionMatrixSprite = MakeOrthoGraphicMatrix(0.0f, 0.0f, static_cast< float >( kClientWidth ), static_cast< float >( kClientHeight ), 0.0f, 100.0f);
+			Matrix4x4 projectionMatrixSprite = MakeOrthoGraphicMatrix(0.0f, 0.0f, static_cast< float >( WinApp::kClientWidth ), static_cast< float >( WinApp::kClientHeight ), 0.0f, 100.0f);
 			Matrix4x4 worldViewProjectionMatrixSprite = Multiply(worldMatrixSprite, Multiply(viewMatrixSprite, projectionMatrixSprite));
 			transformationMatrixDataSprite->WVP = worldViewProjectionMatrixSprite;
 			transformationMatrixDataSprite->World = worldMatrixSprite;
@@ -1901,10 +1810,9 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	//音声委データ解放
 	SoundUnload(&soundData1);
 
+	winApp->Finalize();
+	delete winApp;
+	winApp = nullptr;
 
-	CoUninitialize(); //COMの終了処理
-	//ImGuiの終了処理。詳細はさひて重要ではないので解決は省略する。
-	//こういもんである。初期化と逆順に行う
-	CloseWindow(hwnd);
 	return 0;
 }
