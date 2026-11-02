@@ -16,12 +16,30 @@
     <Filter Include="imgui">
       <UniqueIdentifier>{9986e85e-8207-4885-864c-3aecbba501f0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="VirtualisEngine">
+      <UniqueIdentifier>{9196c015-3207-4431-b864-6af9464653aa}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="VirtualisEngine\2d">
+      <UniqueIdentifier>{855c566a-0edb-4468-9b6c-8fec052ff287}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="VirtualisEngine\3d">
+      <UniqueIdentifier>{0e524ceb-07f0-4406-bf8e-fd7b885af4c7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="VirtualisEngine\audio">
+      <UniqueIdentifier>{ea4e7d27-e840-4d6f-8f00-0e448de59275}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="VirtualisEngine\base">
+      <UniqueIdentifier>{67ffb07c-3419-4634-a781-1e5e2bbdf1e3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="VirtualisEngine\io">
+      <UniqueIdentifier>{d169fb95-726a-4bce-82ed-3045a07ddb62}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="VirtualisEngine\scene">
+      <UniqueIdentifier>{f2d3a02e-27dc-4d9c-a675-aa37fa6f3b22}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="WorldTransform.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="externals\imgui\imgui.cpp">
@@ -45,32 +63,38 @@
     <ClCompile Include="externals\imgui\imgui_widgets.cpp">
       <Filter>imgui</Filter>
     </ClCompile>
-    <ClCompile Include="ResourceObject.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="SoundManager.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DebugCamera.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="InputManager.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="Camera.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="ModelLoader.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="Particle.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="WinApp.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>VirtualisEngine\io</Filter>
     </ClCompile>
     <ClCompile Include="DirectXCommon.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>VirtualisEngine\base</Filter>
+    </ClCompile>
+    <ClCompile Include="SoundManager.cpp">
+      <Filter>VirtualisEngine\audio</Filter>
+    </ClCompile>
+    <ClCompile Include="WorldTransform.cpp">
+      <Filter>VirtualisEngine\3d</Filter>
+    </ClCompile>
+    <ClCompile Include="Camera.cpp">
+      <Filter>VirtualisEngine\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="DebugCamera.cpp">
+      <Filter>VirtualisEngine\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="ResourceObject.cpp">
+      <Filter>VirtualisEngine\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="D3DResourceLeakChecker.cpp">
+      <Filter>VirtualisEngine\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="ModelLoader.cpp">
+      <Filter>VirtualisEngine\3d</Filter>
+    </ClCompile>
+    <ClCompile Include="Particle.cpp">
+      <Filter>VirtualisEngine\3d</Filter>
+    </ClCompile>
+    <ClCompile Include="WinApp.cpp">
+      <Filter>VirtualisEngine\base</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -80,9 +104,6 @@
     <FxCompile Include="Particle.VS.hlsl" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="WorldTransform.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="externals\imgui\imconfig.h">
       <Filter>imgui</Filter>
     </ClInclude>
@@ -107,32 +128,38 @@
     <ClInclude Include="externals\imgui\imstb_truetype.h">
       <Filter>imgui</Filter>
     </ClInclude>
-    <ClInclude Include="ResourceObject.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="SoundManager.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DebugCamera.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="InputManager.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="Camera.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="ModelLoader.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="Particle.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="WinApp.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>VirtualisEngine\io</Filter>
     </ClInclude>
     <ClInclude Include="DirectXCommon.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>VirtualisEngine\base</Filter>
+    </ClInclude>
+    <ClInclude Include="SoundManager.h">
+      <Filter>VirtualisEngine\audio</Filter>
+    </ClInclude>
+    <ClInclude Include="WorldTransform.h">
+      <Filter>VirtualisEngine\3d</Filter>
+    </ClInclude>
+    <ClInclude Include="DebugCamera.h">
+      <Filter>VirtualisEngine\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera.h">
+      <Filter>VirtualisEngine\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="D3DResourceLeakChecker.h">
+      <Filter>VirtualisEngine\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="ResourceObject.h">
+      <Filter>VirtualisEngine\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="ModelLoader.h">
+      <Filter>VirtualisEngine\3d</Filter>
+    </ClInclude>
+    <ClInclude Include="Particle.h">
+      <Filter>VirtualisEngine\3d</Filter>
+    </ClInclude>
+    <ClInclude Include="WinApp.h">
+      <Filter>VirtualisEngine\base</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
