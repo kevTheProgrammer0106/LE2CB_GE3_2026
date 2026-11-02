@@ -3,6 +3,8 @@
 #include"WorldTransform.h"
 #include <cstdint>
 
+
+
 class WinApp
 {
 public: // 静的メンバー関数
