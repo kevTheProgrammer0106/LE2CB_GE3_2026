@@ -1,10 +1,9 @@
 #include "ModelLoader.h"
+#include "DirectXCommon.h"
 #include <fstream>
 #include <sstream>
 #include <cassert>
 
-// 前方宣言(main.cppにあるLog関数を使う)
-void Log(const std::string& message);
 
 namespace
 {
@@ -146,7 +145,7 @@ MaterialData LoadMaterialTemplateFile(const std::string& directoryPath, const st
 	{
 		// assert(file.is_open())だけだとRelease(NDEBUG)ビルドでは無音で握りつぶされてしまうため、
 		// ここで必ずログに残すようにする
-		Log("LoadMaterialTemplateFile: failed to open " + directoryPath + "/" + filename + "\n");
+		Logger::Log("LoadMaterialTemplateFile: failed to open " + directoryPath + "/" + filename + "\n");
 		assert(false);
 		return materialData; // 開けなかった場合は空のMaterialDataを返す
 	}
@@ -174,7 +173,7 @@ std::unordered_map<std::string, MaterialData> LoadMaterialTemplateFileMulti(cons
 	std::ifstream file(directoryPath + "/" + filename);
 	if ( !file.is_open() )
 	{
-		Log("LoadMaterialTemplateFileMulti: failed to open " + directoryPath + "/" + filename + "\n");
+		Logger::Log("LoadMaterialTemplateFileMulti: failed to open " + directoryPath + "/" + filename + "\n");
 		assert(false);
 		return materials; // 開けなかった場合は空のマップを返す
 	}
@@ -211,7 +210,7 @@ ModelData LoadObjFile(const std::string& directoryPath, const std::string& filen
 	{
 		// assert(file.is_open())だけだとRelease(NDEBUG)ビルドでは無音で握りつぶされてしまい、
 		// modelData.verticesが空のまま返ってバッファ生成やMap()の失敗につながるため、必ずログを残す
-		Log("LoadObjFile: failed to open " + directoryPath + "/" + filename + "\n");
+		Logger::Log("LoadObjFile: failed to open " + directoryPath + "/" + filename + "\n");
 		assert(false);
 		return modelData; // 開けなかった場合は空のModelDataを返す
 	}
@@ -276,7 +275,7 @@ ModelData LoadObjFile(const std::string& directoryPath, const std::string& filen
 	if ( modelData.vertices.empty() )
 	{
 		// ファイルは開けたが、中身が空(あるいは想定した形式でない)だった場合もここで気付けるようにする
-		Log("LoadObjFile: " + directoryPath + "/" + filename + " opened but contains no vertices.\n");
+		Logger::Log("LoadObjFile: " + directoryPath + "/" + filename + " opened but contains no vertices.\n");
 	}
 
 	return modelData; // 構築したModelDataを返す
@@ -292,7 +291,7 @@ MultiMeshModelData LoadObjFileMulti(const std::string& directoryPath, const std:
 	std::ifstream file(directoryPath + "/" + filename);
 	if ( !file.is_open() )
 	{
-		Log("LoadObjFileMulti: failed to open " + directoryPath + "/" + filename + "\n");
+		Logger::Log("LoadObjFileMulti: failed to open " + directoryPath + "/" + filename + "\n");
 		assert(false);
 		return result; // 開けなかった場合は空のMultiMeshModelDataを返す
 	}
@@ -351,7 +350,7 @@ MultiMeshModelData LoadObjFileMulti(const std::string& directoryPath, const std:
 
 	if ( result.subMeshes.empty() )
 	{
-		Log("LoadObjFileMulti: " + directoryPath + "/" + filename + " opened but produced no submeshes.\n");
+		Logger::Log("LoadObjFileMulti: " + directoryPath + "/" + filename + " opened but produced no submeshes.\n");
 	}
 
 	return result;
