@@ -165,16 +165,21 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="externals\imgui\imgui_widgets.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="GameScene.cpp" />
     <ClCompile Include="InputManager.cpp" />
+    <ClCompile Include="Logger.cpp" />
     <ClCompile Include="main.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
     <ClCompile Include="ModelLoader.cpp" />
     <ClCompile Include="Particle.cpp" />
+    <ClCompile Include="ParticleEditor.cpp" />
     <ClCompile Include="ResourceObject.cpp" />
     <ClCompile Include="SoundManager.cpp" />
+    <ClCompile Include="StringUtility.cpp" />
     <ClCompile Include="WinApp.cpp" />
+    <ClCompile Include="WindowRenderer.cpp" />
     <ClCompile Include="WorldTransform.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -220,12 +225,17 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="externals\imgui\imstb_rectpack.h" />
     <ClInclude Include="externals\imgui\imstb_textedit.h" />
     <ClInclude Include="externals\imgui\imstb_truetype.h" />
+    <ClInclude Include="GameScene.h" />
     <ClInclude Include="InputManager.h" />
+    <ClInclude Include="Logger.h" />
     <ClInclude Include="ModelLoader.h" />
     <ClInclude Include="Particle.h" />
+    <ClInclude Include="ParticleEditor.h" />
     <ClInclude Include="ResourceObject.h" />
     <ClInclude Include="SoundManager.h" />
+    <ClInclude Include="StringUtility.h" />
     <ClInclude Include="WinApp.h" />
+    <ClInclude Include="WindowRenderer.h" />
     <ClInclude Include="WorldTransform.h" />
   </ItemGroup>
   <ItemGroup>

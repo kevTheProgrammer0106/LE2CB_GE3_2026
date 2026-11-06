@@ -11,11 +11,22 @@
 
 #include<wrl.h>
 
+// 1ウィンドウに1つ作る。DISCL_FOREGROUNDなので、そのウィンドウが最前面のときだけ入力を受け取る
 class InputManager
 {
 public:
 	void Initialize(WinApp* winApp);
 	void Update();
+
+	//==================================================
+	// UI(ImGui)が入力を使っているときは、ゲーム側の入力を無効にする。
+	// 毎フレーム ImGui::NewFrame() の後に io.WantCaptureMouse / io.WantCaptureKeyboard を渡す
+	//==================================================
+	void SetUiCapture(bool mouseCaptured, bool keyboardCaptured)
+	{
+		mouseCaptured_ = mouseCaptured;
+		keyboardCaptured_ = keyboardCaptured;
+	}
 
 	bool PushKey(BYTE key) const;
 	bool TriggerKey(BYTE key) const;
@@ -25,14 +36,31 @@ public:
 	// マウス
 	//==================================================
 	// フレーム間のマウス移動量(px相当)。カメラ回転に使う
-	Vector2 GetMouseDelta() const { return { static_cast<float>(mouseState_.lX), static_cast<float>(mouseState_.lY) }; }
+	Vector2 GetMouseDelta() const
+	{
+		if ( mouseCaptured_ )
+		{
+			return { 0.0f, 0.0f };
+		}
+		return { static_cast< float >( mouseState_.lX ), static_cast< float >( mouseState_.lY ) };
+	}
 	// フレーム間のホイール回転量。ズームに使う(前に回すと正、手前に回すと負が一般的)
-	float GetWheelDelta() const { return static_cast<float>(mouseState_.lZ); }
-	bool PushMouseButton(int button) const { return (mouseState_.rgbButtons[button] & 0x80) != 0; }
+	float GetWheelDelta() const
+	{
+		return mouseCaptured_ ? 0.0f : static_cast< float >( mouseState_.lZ );
+	}
+	bool PushMouseButton(int button) const
+	{
+		return !mouseCaptured_ && ( mouseState_.rgbButtons[button] & 0x80 ) != 0;
+	}
 	bool TriggerMouseButton(int button) const
 	{
-		return (mouseState_.rgbButtons[button] & 0x80) && !(preMouseState_.rgbButtons[button] & 0x80);
+		return !mouseCaptured_ && ( mouseState_.rgbButtons[button] & 0x80 ) && !( preMouseState_.rgbButtons[button] & 0x80 );
 	}
+
+	// このウィンドウのクライアント領域の中央にカーソルを移動する(画面座標に変換して設定する)。
+	// ウィンドウが最前面でないときは何もしない
+	void CenterCursor() const;
 
 private:
 	Microsoft::WRL::ComPtr<IDirectInput8> directInput_;
@@ -44,6 +72,9 @@ private:
 
 	DIMOUSESTATE2 mouseState_{};
 	DIMOUSESTATE2 preMouseState_{};
+
+	bool mouseCaptured_ = false;
+	bool keyboardCaptured_ = false;
 
 	// WindowsAPI
 	WinApp* winApp = nullptr;

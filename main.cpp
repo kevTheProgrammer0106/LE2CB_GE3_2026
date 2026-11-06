@@ -2,6 +2,7 @@
 
 #include "WinApp.h"
 #include "DirectXCommon.h"
+#include "WindowRenderer.h"
 #include "D3DResourceLeakChecker.h"
 
 #include "WorldTransform.h"
@@ -12,6 +13,8 @@
 #include "DebugCamera.h"
 #include "Camera.h"
 #include "ModelLoader.h"
+
+#include "GameScene.h"
 
 #include <array>
 #include <cstring>
@@ -487,13 +490,12 @@ static void InitSprite(DirectXCommon& dx, SpriteObject& sprite, D3D12_GPU_DESCRI
 	sprite.transformData->World = MakeIdentityMatrix();
 }
 
-static void UpdateSprite(SpriteObject& sprite)
+static void UpdateSprite(SpriteObject& sprite, float clientWidth, float clientHeight)
 {
 	// スプライトはカメラの影響を受けないので、ビュー行列は単位行列、射影は正射影
 	Matrix4x4 world = MakeAffineMatrix(sprite.transform.scale, sprite.transform.rotate, sprite.transform.translate);
 	Matrix4x4 view = MakeIdentityMatrix();
-	Matrix4x4 projection = MakeOrthoGraphicMatrix(
-		0.0f, 0.0f, static_cast< float >( WinApp::kClientWidth ), static_cast< float >( WinApp::kClientHeight ), 0.0f, 100.0f);
+	Matrix4x4 projection = MakeOrthoGraphicMatrix(0.0f, 0.0f, clientWidth, clientHeight, 0.0f, 100.0f);
 	sprite.transformData->WVP = Multiply(world, Multiply(view, projection));
 	sprite.transformData->World = world;
 
@@ -645,7 +647,7 @@ static ComPtr<ID3D12RootSignature> CreateRootSignature(ID3D12Device* device)
 	return rootSignature;
 }
 
-static PipelineSet CreatePipelines(DirectXCommon& dx)
+static PipelineSet CreatePipelines(DirectXCommon& dx, DXGI_FORMAT rtvFormat)
 {
 	ID3D12Device* device = dx.GetDevice();
 	PipelineSet pipelines;
@@ -702,7 +704,7 @@ static PipelineSet CreatePipelines(DirectXCommon& dx)
 	baseDesc.PS = { ps->GetBufferPointer(), ps->GetBufferSize() };
 	baseDesc.RasterizerState = rasterizerDesc;
 	baseDesc.NumRenderTargets = 1;
-	baseDesc.RTVFormats[0] = dx.GetRtvFormat();
+	baseDesc.RTVFormats[0] = rtvFormat;
 	baseDesc.DepthStencilState = depthStencilDesc;
 	baseDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	baseDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
@@ -786,7 +788,7 @@ static std::vector<ResourceObject> InitScene(DirectXCommon& dx, Scene& scene)
 	return keepAlive;
 }
 
-static void UpdateScene(Scene& scene, InputManager& input)
+static void UpdateScene(Scene& scene, InputManager& input, float clientWidth, float clientHeight)
 {
 	// --- カメラ更新 ---
 	// Update()はview/projectionを更新するために呼ぶだけで、worldMatrix引数は使わない
@@ -819,13 +821,12 @@ static void UpdateScene(Scene& scene, InputManager& input)
 		scene.emitter.Update(kDeltaTime);
 	}
 
-	UpdateSprite(scene.sprite);
+	UpdateSprite(scene.sprite, clientWidth, clientHeight);
 	UpdateInstancing(scene.instancing, scene.viewProjection);
 }
 
-static void DrawScene(DirectXCommon& dx, Scene& scene, const PipelineSet& pipelines)
+static void DrawScene(ID3D12GraphicsCommandList* commandList, Scene& scene, const PipelineSet& pipelines)
 {
-	ID3D12GraphicsCommandList* commandList = dx.GetCommandList();
 	ID3D12Resource* light = scene.directionalLightResource.Get();
 
 	commandList->SetGraphicsRootSignature(pipelines.rootSignature.Get());
@@ -1062,81 +1063,154 @@ static void DrawSceneUi(Scene& scene)
 //===================================================================
 // アプリ本体(シーンの寿命をDirectXCommonより短くするため、WinMainから切り出している)
 //===================================================================
-static void Run(WinApp& winApp, DirectXCommon& dx)
+static void Run(WinApp& winApp, DirectXCommon& dx, WindowRenderer& renderer)
 {
 	InputManager input;
 	input.Initialize(&winApp);
 
 	// --- サウンド(現在は無効化) ---
-	// Microsoft::WRL::ComPtr<IXAudio2> xAudio2;
-	// IXAudio2MasteringVoice* masteringVoice = nullptr;
-	// IXAudio2SourceVoice* sourceVoice = nullptr;
-	// XAudio2Create(&xAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR);
-	// xAudio2->CreateMasteringVoice(&masteringVoice);
-	// SoundData soundData = SoundLoadWave("resources/WaltzOfFlowers.wav");
-	// SoundPlayWave(xAudio2.Get(), soundData, sourceVoice);
-	// (終了時: SoundStopWave(sourceVoice); xAudio2.Reset(); SoundUnload(&soundData);)
+	// (元のコメントはそのまま残してOK)
 
 	// --- GPUリソースの作成 ---
-	PipelineSet pipelines = CreatePipelines(dx);
+	PipelineSet pipelines = CreatePipelines(dx, renderer.GetRtvFormat());
 	Scene scene;
 	{
 		// アップロード用の中間リソースは、GPUへの転送が終わるまで生かしておく必要がある
 		std::vector<ResourceObject> keepAlive = InitScene(dx, scene);
-		dx.FlushCommands();
+		dx.FlushUploadCommands();
 	} // ここで中間リソースが解放される
 
 	// --- ゲームループ ---
-	while ( !winApp.ProcessMessage() )
+	while ( !WinApp::ProcessMessage() )
 	{
 		input.Update();
 
+		// 最小化中・非表示中は更新も描画もしない。リサイズもここで適用される
+		if ( !renderer.BeginFrame() )
+		{
+			Sleep(16);
+			continue;
+		}
+
 		// UI → 更新 → 描画 の順
-		dx.BeginImGuiFrame();
+		renderer.BeginImGuiFrame();
 #ifdef USE_IMGUI
+		// ImGuiがマウス・キーボードを使っている間は、カメラ操作などのゲーム入力を無効にする
+		const ImGuiIO& io = ImGui::GetIO();
+		input.SetUiCapture(io.WantCaptureMouse, io.WantCaptureKeyboard);
 		DrawSceneUi(scene);
 #endif
-		UpdateScene(scene, input);
+		UpdateScene(scene, input,
+			static_cast< float >( renderer.GetWidth() ), static_cast< float >( renderer.GetHeight() ));
 
-		dx.PreDraw();
-		DrawScene(dx, scene, pipelines);
-		dx.RenderImGui();
-		dx.PostDraw();
+		renderer.PreDraw();
+		DrawScene(renderer.GetCommandList(), scene, pipelines);
+		renderer.RenderImGui();
+		renderer.PostDraw();
 	}
 
 	// シーンのリソースを解放する前に、GPUの処理が終わっていることを保証する
-	dx.WaitForGpu();
+	renderer.WaitForGpu();
 	scene.emitter.Shutdown();
 }
 
 //===================================================================
 // エントリーポイント
 //===================================================================
-int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
+int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 {
+	//システムタイマーの分解能を上げる
+	timeBeginPeriod(1);
+
+	HRESULT hr = CoInitializeEx(0, COINIT_MULTITHREADED); //マルチスレッドでCOMを利用するための初期化
+	assert(SUCCEEDED(hr));
+	( void ) hr;
 	// 誰も補足しなかった場合に(Unhandled)、補足する関数を登録。main関数はじまってすぐに登録すると良い
 	SetUnhandledExceptionFilter(ExportDump);
 
 	// 最後に破棄されるよう、最初に宣言しておく
 	D3DResourceLeakChecker leakCheck;
 
-	// WindowsAPIの初期化(COMの初期化もここで行われる)
-	WinApp* winApp = new WinApp;
-	winApp->Initialize();
+	{
+		// 宣言の逆順(renderer → dx → winApp)で破棄されるので、依存関係の順に並べておく
+		WinApp winApp;
+		winApp.Initialize(hInstance, L"GameEngine", 1280, 720, WindowCloseBehavior::QuitApplication);
 
-	// DirectXの初期化
-	DirectXCommon* dxCommon = new DirectXCommon;
-	dxCommon->Initialize(winApp);
+		DirectXCommon dxCommon;
+		dxCommon.Initialize();
 
-	Run(*winApp, *dxCommon);
+		WindowRenderer renderer;
+		renderer.Initialize(&winApp, &dxCommon);
 
-	// 終了処理(初期化と逆順)
-	delete dxCommon;
-	dxCommon = nullptr;
+		WinApp editorWin;
+		editorWin.Initialize(hInstance, L"Particle Editor", 960, 540, WindowCloseBehavior::HideWindow);
+		WindowRenderer editorRenderer;
+		editorRenderer.Initialize(&editorWin, &dxCommon);
+		editorRenderer.SetVSync(false);   // vsync待ちが2回重なってFPSが半減するのを防ぐ
+		InputManager editorInput;
+		editorInput.Initialize(&editorWin);
 
-	winApp->Finalize();
-	delete winApp;
-	winApp = nullptr;
+		Run(winApp, dxCommon, renderer);
+	}
 
+	CoUninitialize();
+	timeEndPeriod(1);
 	return 0;
 }
+
+//	// 記録時間(FPS固定用)
+//std::chrono::steady_clock::time_point referenceFPS_;
+//// FPS
+//// FPS固定用の初期化
+//void InitializeVSync(); // Frames per Second固定用の初期化
+//void UpdateVSync(); // Frames per Second固定用の更新
+//void DirectXCommon::InitializeVSync()
+//{
+//	//現在の時間を記録する
+//	referenceFPS_ = std::chrono::steady_clock::now();
+//};
+//void DirectXCommon::UpdateVSync()
+//{
+//	// 1/60秒ぴったりの時間
+//	const std::chrono::microseconds kMinTime(uint64_t(1000000.0f / 60.0f));
+//	// 1/60秒よりわずかに短い時間
+//	const std::chrono::microseconds kMinCheckTime(uint64_t(1000000.0f / 65.0f));
+//
+//	//現在の時間を取得する
+//	std::chrono::steady_clock::time_point currentTime = std::chrono::steady_clock::now();
+//	// 前回の時間からの経過時間を計算する
+//	std::chrono::microseconds elapsedTime = std::chrono::duration_cast< std::chrono::microseconds >( currentTime - referenceFPS_ );
+//
+//	// 1/60秒 (よりわずかに短い時間) 経ってない場合
+//	if ( elapsedTime < kMinCheckTime )
+//	{
+//		// 1/60秒経過するまで微小なスリープするスリープを振り返す
+//		while ( std::chrono::steady_clock::now() - referenceFPS_ < kMinTime )
+//		{
+//			// 1マイクロ秒スリープする
+//			std::this_thread::sleep_for(std::chrono::microseconds(1));
+//		}
+//	}
+//	//現在の時間を記録する
+//	referenceFPS_ = std::chrono::steady_clock::now();
+//
+//	//// FPS固定用の更新
+//	//// 1秒間に60回描画するための時間(ナノ秒)
+//	//constexpr uint64_t kOneSecondInNanoseconds = 1000000000;
+//	//constexpr uint64_t kTargetFPS = 60;
+//	//constexpr uint64_t kFrameDuration = kOneSecondInNanoseconds / kTargetFPS;
+//	//// 現在の時間を取得
+//	//LARGE_INTEGER frequency;
+//	//QueryPerformanceFrequency(&frequency);
+//	//LARGE_INTEGER currentTime;
+//	//QueryPerformanceCounter(&currentTime);
+//	//// 次のフレームの開始時間まで待つ
+//	//if ( currentTime.QuadPart < nextFrameTime )
+//	//{
+//	//	uint64_t waitTime = nextFrameTime - currentTime.QuadPart;
+//	//	uint64_t waitMilliseconds = ( waitTime * 1000 ) / frequency.QuadPart;
+//	//	Sleep(static_cast< DWORD >(waitMilliseconds));
+//	//}
+//	//// 次のフレームの開始時間を計算
+//	//nextFrameTime += ( kFrameDuration * frequency.QuadPart ) / kOneSecondInNanoseconds;
+//};

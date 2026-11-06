@@ -6,8 +6,8 @@ void InputManager::Initialize(WinApp* winApp)
 	this->winApp = winApp;
 
 	// DirectInputの初期化
-	HRESULT hr = DirectInput8Create(winApp->GetHInstance(), DIRECTINPUT_VERSION, IID_IDirectInput8,
-		(void**)&directInput_, nullptr);
+	HRESULT hr = DirectInput8Create(winApp->GetWindowClass().hInstance, DIRECTINPUT_VERSION, IID_IDirectInput8,
+		( void** ) &directInput_, nullptr);
 	assert(SUCCEEDED(hr));
 
 	// キーボードデバイスの生成
@@ -33,16 +33,18 @@ void InputManager::Update()
 	memcpy(preKey_, key_, sizeof(key_));
 	preMouseState_ = mouseState_;
 
+	// フォーカスが別ウィンドウにあるとAcquire/GetDeviceStateが失敗する。
+	// その場合は「何も押されていない」状態にする(別ウィンドウの操作を拾わない)
 	keyboard_->Acquire();
 	HRESULT hr = keyboard_->GetDeviceState(sizeof(key_), key_);
-	if (FAILED(hr))
+	if ( FAILED(hr) )
 	{
 		ZeroMemory(key_, sizeof(key_));
 	}
 
 	mouse_->Acquire();
 	hr = mouse_->GetDeviceState(sizeof(DIMOUSESTATE2), &mouseState_);
-	if (FAILED(hr))
+	if ( FAILED(hr) )
 	{
 		ZeroMemory(&mouseState_, sizeof(mouseState_));
 	}
@@ -50,15 +52,31 @@ void InputManager::Update()
 
 bool InputManager::PushKey(BYTE key) const
 {
-	return key_[key];
+	return !keyboardCaptured_ && key_[key] != 0;
 }
 
 bool InputManager::TriggerKey(BYTE key) const
 {
-	return key_[key] && !preKey_[key];
+	return !keyboardCaptured_ && key_[key] && !preKey_[key];
 }
 
 bool InputManager::ReleaseKey(BYTE key) const
 {
-	return !key_[key] && preKey_[key];
+	return !keyboardCaptured_ && !key_[key] && preKey_[key];
+}
+
+void InputManager::CenterCursor() const
+{
+	HWND hwnd = winApp ? winApp->GetHwnd() : nullptr;
+	if ( !hwnd || GetForegroundWindow() != hwnd )
+	{
+		return;
+	}
+
+	// 固定座標ではなく、このウィンドウのクライアント領域の中央を画面座標に変換して使う
+	RECT clientRect{};
+	GetClientRect(hwnd, &clientRect);
+	POINT center = { ( clientRect.right - clientRect.left ) / 2, ( clientRect.bottom - clientRect.top ) / 2 };
+	ClientToScreen(hwnd, &center);
+	SetCursorPos(center.x, center.y);
 }

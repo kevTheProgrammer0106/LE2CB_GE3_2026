@@ -1,5 +1,4 @@
 #pragma once
-#include "WinApp.h"
 
 #include <d3d12.h>
 #include <dxgi1_6.h>
@@ -14,6 +13,7 @@
 
 #include <array>
 #include <cstdint>
+#include <cstddef>
 #include <format>
 #include <string>
 #include <thread>
@@ -36,44 +36,23 @@ namespace StringUtility
 }
 
 //==================================================
-// DirectX基盤
-//   - デバイス / コマンド / スワップチェーン / ヒープ / 深度 / フェンス / DXC / ImGui の初期化
-//   - フレームの開始(PreDraw)と終了(PostDraw)
+// DirectX基盤(ウィンドウに依存しない共有部分)
+//   - デバイス / コマンドキュー / SRVヒープ / DXC / アップロード用コマンド
 //   - バッファ・テクスチャ・シェーダーの生成ヘルパー
+// スワップチェーン・深度・フレーム制御・ImGuiは WindowRenderer が受け持つ(ウィンドウごとに1つ)
 //==================================================
 class DirectXCommon
 {
 public:
-	static constexpr uint32_t kBackBufferCount = 2;
-	static constexpr uint32_t kRtvHeapSize = kBackBufferCount;
+	// 全ウィンドウのImGuiフォント・テクスチャで共有するSRVヒープの大きさ
 	static constexpr uint32_t kSrvHeapSize = 128;
-	static constexpr uint32_t kDsvHeapSize = 1;
 
+	DirectXCommon() = default;
+	DirectXCommon(const DirectXCommon&) = delete;
+	DirectXCommon& operator=(const DirectXCommon&) = delete;
 	~DirectXCommon();
 
-	//--------------------------------------------------
-	// ライフサイクル
-	//--------------------------------------------------
-	void Initialize(WinApp* winApp);
-
-	//--------------------------------------------------
-	// フレーム制御
-	//--------------------------------------------------
-	/// 描画開始: バリア / RTV・DSV設定 / クリア / ビューポート / SRVヒープ設定
-	void PreDraw();
-	/// 描画終了: (ImGuiは呼び出し側がRenderImGuiで積んでおく) バリア / Close / 実行 / Present / 待機 / リセット
-	void PostDraw();
-	/// GPUが現在までのコマンドを終えるまで待つ
-	void WaitForGpu();
-	/// 積んだコマンドを実行して待ち、コマンドリストを再びオープンする(初期化時のテクスチャアップロード用)
-	void FlushCommands();
-
-	//--------------------------------------------------
-	// ImGui (USE_IMGUI未定義なら何もしない)
-	//--------------------------------------------------
-	void BeginImGuiFrame();
-	/// ImGui::Render() と描画コマンドの積み込み。PostDrawの前に呼ぶ
-	void RenderImGui();
+	void Initialize();
 
 	//--------------------------------------------------
 	// ゲッター
@@ -82,30 +61,41 @@ public:
 	{
 		return device.Get();
 	}
-	ID3D12GraphicsCommandList* GetCommandList() const
+
+	ID3D12DescriptorHeap* GetSrvDescriptorHeap() const
 	{
-		return commandList.Get();
+		return srvDescriptorHeap.Get();
 	}
 	ID3D12CommandQueue* GetCommandQueue() const
 	{
 		return commandQueue.Get();
 	}
-	ID3D12DescriptorHeap* GetSrvDescriptorHeap() const
+	ID3D12GraphicsCommandList* GetUploadCommandList() const
 	{
-		return srvDescriptorHeap.Get();
+		return uploadCommandList.Get();
 	}
-	DXGI_FORMAT GetRtvFormat() const
+	ID3D12CommandAllocator* GetUploadCommandAllocator() const
 	{
-		return rtvDesc.Format;
-	}
-	uint32_t GetBackBufferCount() const
-	{
-		return swapChainDesc.BufferCount;
+		return uploadCommandAllocator.Get();
 	}
 
-//--------------------------------------------------
-// ディスクリプタ
-//--------------------------------------------------
+	IDXGIFactory7* GetDxgiFactory() const
+	{
+		return dxgiFactory.Get();
+	}
+
+	//--------------------------------------------------
+	// アップロード用コマンド(テクスチャ転送など、描画フレームとは別に流すもの)
+	//--------------------------------------------------
+	/// 積んだアップロードコマンドを実行し、完了を待ってからコマンドリストを再オープンする。
+	/// UploadTextureData() が返した中間リソースは、これが終わるまで保持すること
+	void FlushUploadCommands();
+	/// アップロード用フェンスでGPU完了を待つ
+	void WaitForUploadGpu();
+
+	//--------------------------------------------------
+	// ディスクリプタ
+	//--------------------------------------------------
 	static Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(
 		ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT numDescriptors, bool shaderVisible);
 	static D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandle(ID3D12DescriptorHeap* descriptorHeap, uint32_t descriptorSize, uint32_t index);
@@ -114,7 +104,8 @@ public:
 	/// SRVヒープの指定番号のハンドル
 	D3D12_CPU_DESCRIPTOR_HANDLE GetSRVCPUDescriptorHandle(uint32_t index) const;
 	D3D12_GPU_DESCRIPTOR_HANDLE GetSRVGPUDescriptorHandle(uint32_t index) const;
-	/// SRVヒープの空き番号を1つ確保して返す(0番はImGuiのフォント用に予約済みなので1から始まる)
+	/// SRVヒープの空き番号を1つ確保して返す。
+	/// ImGuiのフォント用スロットも、ウィンドウごとにここから確保する(共有すると上書きし合うため)
 	uint32_t AllocateSrvIndex();
 
 	//--------------------------------------------------
@@ -124,7 +115,7 @@ public:
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateBufferResource(size_t sizeInBytes) const;
 	/// テクスチャ本体(COPY_DEST状態で生成される)
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateTextureResource(const DirectX::TexMetadata& metaData) const;
-	/// テクスチャのアップロードコマンドを積む。戻り値の中間リソースは FlushCommands() が終わるまで保持すること
+	/// テクスチャのアップロードコマンドを積む。戻り値の中間リソースは FlushUploadCommands() が終わるまで保持すること
 	[[nodiscard]]
 	Microsoft::WRL::ComPtr<ID3D12Resource> UploadTextureData(ID3D12Resource* texture, const DirectX::ScratchImage& mipImages);
 	/// 画像を読み込んでミップマップを生成する
@@ -137,79 +128,37 @@ public:
 
 private:
 
-	// 記録時間(FPS固定用)
-	std::chrono::steady_clock::time_point referenceFPS_;
-
 	//--------------------------------------------------
 	// 初期化(Initializeから順に呼ばれる)
 	//--------------------------------------------------
 	void InitializeDevice();
-	void InitializeCommands();
-	void InitializeSwapChain();
+	void InitializeCommandQueue();
+	void InitializeUploadCommands();
 	void InitializeDescriptorHeap();
-	void InitializeRenderTargetView();
-	void InitializeDepthBuffer();
-	void InitializeDepthStencilView();
-	void InitializeFence();
-	void InitializeViewportRectangle();
-	void InitializeScissoring();
 	void InitializeDxcCompiler();
-	void InitializeImGui();
-
-	Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthStencilTextureResource(int32_t width, int32_t height) const;
-	void TransitionBackBuffer(D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after);
-
-	// WindowsAPI
-	WinApp* winApp = nullptr;
 
 	// デバイス周り
 	Microsoft::WRL::ComPtr<ID3D12Device> device;
 	Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory;
 	Microsoft::WRL::ComPtr<IDXGIAdapter4> useAdapter;
 
-	// コマンド
+	// コマンドキュー
 	Microsoft::WRL::ComPtr<ID3D12CommandQueue> commandQueue;
-	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> commandAllocator;
-	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commandList;
-
-	// スワップチェーン
-	Microsoft::WRL::ComPtr<IDXGISwapChain4> swapChain;
-	std::array<Microsoft::WRL::ComPtr<ID3D12Resource>, kBackBufferCount> swapChainResources;
-	DXGI_SWAP_CHAIN_DESC1 swapChainDesc{};
-	UINT backBufferIndex = 0; // PreDrawで更新される、今フレームの書き込み先
+	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> uploadCommandAllocator;
+	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> uploadCommandList;
 
 	// ディスクリプタヒープ
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap;
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap;
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap;
 	uint32_t descriptorSizeSRV = 0;
-	uint32_t descriptorSizeRTV = 0;
-	uint32_t descriptorSizeDSV = 0;
-	uint32_t nextSrvIndex = 1; // 0番はImGui用
-
-	// RTV / DSV
-	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
-	std::array<D3D12_CPU_DESCRIPTOR_HANDLE, kBackBufferCount> rtvHandles{};
-	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource;
-
-	// フェンス
-	Microsoft::WRL::ComPtr<ID3D12Fence> fence;
-	uint64_t fenceValue = 0;
-	HANDLE fenceEvent = nullptr;
-
-	// ビューポート / シザー
-	D3D12_VIEWPORT viewport{};
-	D3D12_RECT scissorRect{};
+	uint32_t nextSrvIndex = 0; // 予約スロットは無い。ImGuiも含めてAllocateSrvIndex()で確保する
 
 	// DXC
 	Microsoft::WRL::ComPtr<IDxcUtils> dxcUtils;
 	Microsoft::WRL::ComPtr<IDxcCompiler3> dxcCompiler;
 	Microsoft::WRL::ComPtr<IDxcIncludeHandler> includeHandler;
 
-	// FPS
-	// FPS固定用の初期化
-	void InitializeVSync(); // Frames per Second固定用の初期化
-	void UpdateVSync(); // Frames per Second固定用の更新
-
-	bool imguiInitialized = false;
+	// アップロード用フェンス(WindowRendererのフレーム用フェンスとは別)
+	Microsoft::WRL::ComPtr<ID3D12Fence> uploadFence;
+	uint64_t uploadFenceValue = 0;
+	HANDLE uploadFenceEvent = nullptr;
 };
