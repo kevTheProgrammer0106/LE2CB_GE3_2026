@@ -19,21 +19,8 @@
 #include <thread>
 #include <chrono>
 
-//==================================================
-// ユーティリティ
-//==================================================
-// ログ出力
-namespace Logger
-{
-	void Log(const std::string& message);
-}
-// 文字コードユーティリティ
-namespace StringUtility
-{
-	std::wstring ConvertString(const std::string& str);
-	// wstring -> string
-	std::string ConvertString(const std::wstring& str);
-}
+#include "Logger.h"
+#include "StringUtility.h"
 
 //==================================================
 // DirectX基盤(ウィンドウに依存しない共有部分)

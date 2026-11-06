@@ -15,7 +15,7 @@ inline float Lerp(float start, float end, float t) {
 };
 inline float EaseInOut(float start, float end, float t) {
     float num;
-    num = -(cosf(static_cast<float>(M_PI) * t) - 1.0f) / 2;
+    num = -( cosf(3.14159265358979323846f * t) - 1.0f ) / 2;
     return Lerp(start, end, num);
 };
 

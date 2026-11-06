@@ -140,7 +140,12 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Application.cpp" />
+    <ClCompile Include="AppWindow.cpp" />
+    <ClCompile Include="AssetCache.cpp" />
+    <ClCompile Include="BlendModes.cpp" />
     <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="CrashHandler.cpp" />
     <ClCompile Include="D3DResourceLeakChecker.cpp" />
     <ClCompile Include="DebugCamera.cpp" />
     <ClCompile Include="DirectXCommon.cpp" />
@@ -165,8 +170,12 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="externals\imgui\imgui_widgets.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="FrameTimer.cpp" />
     <ClCompile Include="GameScene.cpp" />
     <ClCompile Include="InputManager.cpp" />
+    <ClCompile Include="InstancingObject.cpp" />
+    <ClCompile Include="IScene.cpp" />
+    <ClCompile Include="LightBuffer.cpp" />
     <ClCompile Include="Logger.cpp" />
     <ClCompile Include="main.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
@@ -175,8 +184,12 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="ModelLoader.cpp" />
     <ClCompile Include="Particle.cpp" />
     <ClCompile Include="ParticleEditor.cpp" />
+    <ClCompile Include="PipelineManager.cpp" />
+    <ClCompile Include="RenderObject.cpp" />
     <ClCompile Include="ResourceObject.cpp" />
+    <ClCompile Include="SceneCamera.cpp" />
     <ClCompile Include="SoundManager.cpp" />
+    <ClCompile Include="Sprite.cpp" />
     <ClCompile Include="StringUtility.cpp" />
     <ClCompile Include="WinApp.cpp" />
     <ClCompile Include="WindowRenderer.cpp" />
@@ -213,7 +226,12 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Application.h" />
+    <ClInclude Include="AppWindow.h" />
+    <ClInclude Include="AssetCache.h" />
+    <ClInclude Include="BlendModes.h" />
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="CrashHandler.h" />
     <ClInclude Include="D3DResourceLeakChecker.h" />
     <ClInclude Include="DebugCamera.h" />
     <ClInclude Include="DirectXCommon.h" />
@@ -225,14 +243,22 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="externals\imgui\imstb_rectpack.h" />
     <ClInclude Include="externals\imgui\imstb_textedit.h" />
     <ClInclude Include="externals\imgui\imstb_truetype.h" />
+    <ClInclude Include="FrameTimer.h" />
     <ClInclude Include="GameScene.h" />
     <ClInclude Include="InputManager.h" />
+    <ClInclude Include="InstancingObject.h" />
+    <ClInclude Include="IScene.h" />
+    <ClInclude Include="LightBuffer.h" />
     <ClInclude Include="Logger.h" />
     <ClInclude Include="ModelLoader.h" />
     <ClInclude Include="Particle.h" />
     <ClInclude Include="ParticleEditor.h" />
+    <ClInclude Include="PipelineManager.h" />
+    <ClInclude Include="RenderObject.h" />
     <ClInclude Include="ResourceObject.h" />
+    <ClInclude Include="SceneCamera.h" />
     <ClInclude Include="SoundManager.h" />
+    <ClInclude Include="Sprite.h" />
     <ClInclude Include="StringUtility.h" />
     <ClInclude Include="WinApp.h" />
     <ClInclude Include="WindowRenderer.h" />
