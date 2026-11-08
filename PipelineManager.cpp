@@ -165,6 +165,16 @@ void PipelineManager::Initialize(DirectXCommon& dx, DXGI_FORMAT rtvFormat)
 		( void ) hr;
 	}
 
+	// 線: プリミティブの種類だけ LINE にする(トポロジタイプはPSOに焼き込まれるため、別のPSOが要る)
+	{
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = baseDesc;
+		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+		desc.BlendState = CreateParticleBlendDesc(ParticleBlendMode::Normal);
+		HRESULT hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&line_));
+		assert(SUCCEEDED(hr));
+		( void ) hr;
+	}
+
 	// ブレンドモードごとのPSO
 	for ( int i = 0; i < kBlendModeCount; ++i )
 	{

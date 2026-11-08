@@ -5,7 +5,6 @@
 #include <format>
 
 #include "DirectXCommon.h"
-#include "ModelLoader.h"
 
 namespace
 {
@@ -20,6 +19,7 @@ void AssetCache::Initialize(DirectXCommon& dx)
 
 	spriteTexture_ = CreateTextureWithSrv(dx, "resources/uvChecker.png", keepAlive);
 	particleTexture_ = CreateTextureWithSrv(dx, "resources/particle.jpg", keepAlive);
+	whiteTexture_ = CreateTextureWithSrv(dx, "resources/white1x1.png", keepAlive);
 
 	LoadModels(dx, keepAlive);
 
@@ -151,55 +151,47 @@ void AssetCache::LoadModels(DirectXCommon& dx, std::vector<ResourceObject>& keep
 	{
 		ModelResource model;
 		AddSubMesh(dx, model, GenerateSphereVertices(kSphereSubdivision), "", "Sphere", keepAlive);
+		model.bounds = { { -1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, true }; // 半径1
 		models_[ModelNode::Sphere] = std::move(model);
 	}
 
-	// 単一メッシュのobj。textureOverrideがあればmtlのテクスチャは無視してそれを貼る。
+	// objモデルの一覧。モデルを増やすときは、ここに1項目足す(+ ModelNode と kModelNodeItems に同じ順で足す)。
+	// settings には読み込み時の値(倍率・オフセット・反転・テクスチャ上書き)を書ける
+	struct ModelCatalogEntry
+	{
+		ModelNode node;
+		const char* name;
+		const char* objFile;
+		ModelImportSettings settings;
+	};
+
+	// textureOverrideの理由:
 	//  - Suzanne: 常にwhite1x1を貼る。
 	//  - Teapot : teapot.objはvt(テクスチャ座標)を持たず全頂点のUVが(0,0)になる。
 	//             絵柄付きテクスチャだと単色の塊に見えてしまうので、white1x1にしてHalf-Lambertの陰影で形を見せる。
-	struct SingleModelDesc
-	{
-		ModelNode node;
-		const char* name;
-		const char* objFile;
-		const char* textureOverride; // nullptrならmtlのテクスチャを使う
-	};
-	const SingleModelDesc singleModels[] = {
-		{ ModelNode::Plane, "Plane", "plane.obj", nullptr },
-		{ ModelNode::Axis, "Axis", "axis.obj", nullptr },
-		{ ModelNode::Bunny, "Bunny", "bunny.obj", nullptr },
-		{ ModelNode::Suzanne, "Suzanne", "suzanne.obj", "resources/white1x1.png" },
-		{ ModelNode::Teapot, "Teapot", "teapot.obj", "resources/white1x1.png" },
-	};
-	for ( const auto& desc : singleModels )
-	{
-		ModelData md = LoadObjFile("resources", desc.objFile);
-		const std::string texture = desc.textureOverride ? desc.textureOverride : md.material.textureFilePath;
-		ModelResource model;
-		AddSubMesh(dx, model, md.vertices, texture, desc.name, keepAlive);
-		models_[desc.node] = std::move(model);
-	}
+	ModelImportSettings whiteTexture;
+	whiteTexture.textureOverride = "resources/white1x1.png";
 
-	// 複数サブメッシュのobj
-	struct MultiModelDesc
-	{
-		ModelNode node;
-		const char* name;
-		const char* objFile;
+	const std::vector<ModelCatalogEntry> catalog = {
+		{ ModelNode::Plane, "Plane", "plane.obj", {} },
+		{ ModelNode::Axis, "Axis", "axis.obj", {} },
+		{ ModelNode::Bunny, "Bunny", "bunny.obj", {} },
+		{ ModelNode::Suzanne, "Suzanne", "suzanne.obj", whiteTexture },
+		{ ModelNode::Teapot, "Teapot", "teapot.obj", whiteTexture },
+		{ ModelNode::MultiMaterial, "MultiMaterial", "multiMaterial.obj", {} },
+		{ ModelNode::MultiMesh, "MultiMesh", "multiMesh.obj", {} },
 	};
-	const MultiModelDesc multiModels[] = {
-		{ ModelNode::MultiMaterial, "MultiMaterial", "multiMaterial.obj" },
-		{ ModelNode::MultiMesh, "MultiMesh", "multiMesh.obj" },
-	};
-	for ( const auto& desc : multiModels )
+
+	for ( const ModelCatalogEntry& entry : catalog )
 	{
-		MultiMeshModelData md = LoadObjFileMulti("resources", desc.objFile);
+		const MultiMeshModelData data = LoadModel("resources", entry.objFile, entry.settings);
+
 		ModelResource model;
-		for ( auto& sm : md.subMeshes )
+		model.bounds = data.bounds;
+		for ( const SubMeshData& sub : data.subMeshes )
 		{
-			AddSubMesh(dx, model, sm.vertices, sm.material.textureFilePath, desc.name, keepAlive);
+			AddSubMesh(dx, model, sub.vertices, sub.material.textureFilePath, entry.name, keepAlive);
 		}
-		models_[desc.node] = std::move(model);
+		models_[entry.node] = std::move(model);
 	}
 }

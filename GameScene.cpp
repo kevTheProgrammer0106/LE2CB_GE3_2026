@@ -4,12 +4,17 @@
 #include "DirectXCommon.h"
 #include "PipelineManager.h"
 
+#include <iterator>
+#include <string>
+
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
 void GameScene::Initialize(DirectXCommon& dx, const AssetCache& assets, ParticleLibrary& library)
 {
+	dx_ = &dx;
+
 	camera_.Initialize();
 	light_.Initialize(dx);
 
@@ -27,6 +32,45 @@ void GameScene::Initialize(DirectXCommon& dx, const AssetCache& assets, Particle
 
 	sparkle_.Initialize(dx, library, "Sparkle2D", ParticleConfig::MakeSparkle2D());
 	sparkle_.position = { 1000.0f, 600.0f, 0.0f }; // 2Dはピクセル座標(左上が原点)
+
+	// 図形: コードから追加する例。Hierarchyの「Add」でも同じように追加できる(不要なら消してよい)
+	const ShapeType demoTypes[] = { ShapeType::Box, ShapeType::Line, ShapeType::Triangle, ShapeType::Sphere, ShapeType::Cone };
+	float x = -3.2f;
+	for ( ShapeType type : demoTypes )
+	{
+		ShapeObject* shape = AddShape(type);
+		shape->transform.scale = { 0.8f, 0.8f, 0.8f, 0.0f };
+		shape->transform.translate = { x, -1.6f, 0.0f, 0.0f };
+		x += 1.6f;
+	}
+}
+
+ShapeObject* GameScene::AddShape(ShapeType type, const std::string& name)
+{
+	const int typeIndex = static_cast< int >( type );
+
+	std::string objectName = name;
+	if ( objectName.empty() )
+	{
+		objectName = std::string(kShapeTypeNames[typeIndex]) + " " + std::to_string(++shapeCounters_[typeIndex]);
+	}
+
+	auto shape = std::make_unique<ShapeObject>();
+	shape->Initialize(*dx_, type, objectName);
+	shapes_.push_back(std::move(shape));
+	return shapes_.back().get();
+}
+
+void GameScene::DeleteShape(int index)
+{
+	if ( index < 0 || index >= static_cast< int >(shapes_.size()) )
+	{
+		return;
+	}
+	// DrawUi() はこのフレームのコマンドを積む前に呼ばれ、前フレームのGPU処理はウィンドウごとの
+	// 待機で終わっているので、ここでバッファを解放してよい
+	shapes_.erase(shapes_.begin() + index);
+	selection_ = {};
 }
 
 void GameScene::Update(float deltaTime, InputManager& input, float clientWidth, float clientHeight)
@@ -38,6 +82,11 @@ void GameScene::Update(float deltaTime, InputManager& input, float clientWidth, 
 	object2_.Update(viewProjection);
 	sprite_.Update(clientWidth, clientHeight);
 	instancing_.Update(viewProjection);
+
+	for ( auto& shape : shapes_ )
+	{
+		shape->Update(viewProjection);
+	}
 
 	for ( ParticleEmitter* emitter : emitters_ )
 	{
@@ -58,8 +107,19 @@ void GameScene::Draw(const RenderContext& context)
 
 	// --- モデル ---
 	commandList->SetPipelineState(pipelines.GetModelPso(modelBlendMode_));
-	object1_.Draw(commandList, assets, lightAddress);
-	object2_.Draw(commandList, assets, lightAddress);
+	for ( int i = 0; i < kModelCount; ++i )
+	{
+		if ( modelVisible_[i] )
+		{
+			models_[i]->Draw(commandList, assets, lightAddress);
+		}
+	}
+
+	// --- 図形(PSOとトポロジは図形ごとにShapeObject::Drawが設定する) ---
+	for ( const auto& shape : shapes_ )
+	{
+		shape->Draw(commandList, pipelines, assets, lightAddress, modelBlendMode_);
+	}
 
 	// --- スプライト ---
 	sprite_.Draw(commandList, pipelines, lightAddress);
@@ -85,6 +145,11 @@ void GameScene::DrawEmitters(const RenderContext& context, ParticleRenderMode mo
 
 void GameScene::Shutdown()
 {
+	for ( auto& shape : shapes_ )
+	{
+		shape->Shutdown();
+	}
+
 	for ( ParticleEmitter* emitter : emitters_ )
 	{
 		emitter->Shutdown();
@@ -94,6 +159,7 @@ void GameScene::Shutdown()
 void GameScene::DrawUi()
 {
 #ifdef USE_IMGUI
+	// --- 全体の設定 ---
 	ImGui::Begin("Game Debug");
 
 	if ( ImGui::Button("Open Particle Editor (F2)") )
@@ -102,38 +168,169 @@ void GameScene::DrawUi()
 	}
 	ImGui::Separator();
 
-	camera_.DrawUi();
-	ImGui::Separator();
-
-	ImGui::Text("Model");
+	ImGui::Text("Model / Shape");
 	int blendIndex = static_cast< int >( modelBlendMode_ );
 	if ( ImGui::Combo("Blend Mode", &blendIndex, kBlendModeItems) )
 	{
 		modelBlendMode_ = static_cast< ParticleBlendMode >( blendIndex );
 	}
 
-	object1_.DrawUi("Object 1");
-	ImGui::Separator();
-	object2_.DrawUi("Object 2");
-	ImGui::Separator();
+	ImGui::End();
 
-	light_.DrawUi();
-	ImGui::Separator();
+	// --- 仮のオブジェクト管理UI ---
+	DrawHierarchyUi();
+	DrawPropertiesUi();
+#endif
+}
 
-	sprite_.DrawUi();
-	ImGui::Separator();
+void GameScene::HierarchyRow(const char* label, SceneItemKind kind, int index, bool* visible)
+{
+#ifdef USE_IMGUI
+	ImGui::PushID(static_cast< int >( kind ) * 1000 + index);
 
-	instancing_.DrawUi();
-	ImGui::Separator();
-
-	ImGui::Text("Particles");
-	for ( ParticleEmitter* emitter : emitters_ )
+	if ( visible != nullptr )
 	{
-		ImGui::Separator();
-		emitter->DrawUi();
+		ImGui::Checkbox("##visible", visible);
+		ImGui::SameLine();
+	}
+	if ( ImGui::Selectable(label, selection_.Is(kind, index)) )
+	{
+		selection_ = { kind, index };
+	}
+
+	ImGui::PopID();
+#else
+	( void ) label;
+	( void ) kind;
+	( void ) index;
+	( void ) visible;
+#endif
+}
+
+void GameScene::DrawHierarchyUi()
+{
+#ifdef USE_IMGUI
+	ImGui::Begin("Hierarchy");
+
+	// 図形を追加する
+	if ( ImGui::Button("+ Add Shape") )
+	{
+		ImGui::OpenPopup("AddShapePopup");
+	}
+	if ( ImGui::BeginPopup("AddShapePopup") )
+	{
+		for ( int i = 0; i < kShapeTypeCount; ++i )
+		{
+			if ( ImGui::MenuItem(kShapeTypeNames[i]) )
+			{
+				ShapeObject* shape = AddShape(static_cast< ShapeType >(i));
+				// 追加した物が重ならないよう、少しずつずらして置く
+				const int n = static_cast< int >(shapes_.size());
+				shape->transform.translate = { static_cast< float >(( n - 1 ) % 5 - 2) * 1.5f, 1.5f, 0.0f, 0.0f };
+				selection_ = { SceneItemKind::Shape, n - 1 };
+			}
+		}
+		ImGui::EndPopup();
+	}
+	ImGui::Separator();
+
+	HierarchyRow("Main Camera", SceneItemKind::Camera, 0, nullptr);
+	HierarchyRow("Directional Light", SceneItemKind::Light, 0, nullptr);
+
+	ImGui::Separator();
+	HierarchyRow("Object 1", SceneItemKind::Model, 0, &modelVisible_[0]);
+	HierarchyRow("Object 2", SceneItemKind::Model, 1, &modelVisible_[1]);
+	HierarchyRow("Sprite", SceneItemKind::Sprite, 0, &sprite_.enabled);
+	HierarchyRow("Instancing Demo", SceneItemKind::InstancingDemo, 0, &instancing_.enabled);
+
+	ImGui::Separator();
+	ImGui::TextDisabled("Shapes");
+	for ( size_t i = 0; i < shapes_.size(); ++i )
+	{
+		const std::string label = shapes_[i]->name + "  [" + kShapeTypeNames[static_cast< int >(shapes_[i]->GetType())] + "]";
+		HierarchyRow(label.c_str(), SceneItemKind::Shape, static_cast< int >(i), &shapes_[i]->visible);
+	}
+
+	ImGui::Separator();
+	ImGui::TextDisabled("Particles");
+	for ( int i = 0; i < static_cast< int >(std::size(emitters_)); ++i )
+	{
+		const char* mode = ( emitters_[i]->GetRenderMode() == ParticleRenderMode::Screen2D ) ? "2D" : "3D";
+		const std::string label = emitters_[i]->GetName() + "  [" + mode + "]";
+		HierarchyRow(label.c_str(), SceneItemKind::Emitter, i, &emitters_[i]->enabled);
 	}
 
 	ImGui::End();
+#endif
+}
+
+void GameScene::DrawPropertiesUi()
+{
+#ifdef USE_IMGUI
+	ImGui::Begin("Properties");
+
+	int deleteShapeIndex = -1;
+
+	switch ( selection_.kind )
+	{
+		case SceneItemKind::Camera:
+			ImGui::Text("Main Camera");
+			ImGui::Separator();
+			camera_.DrawUi();
+			break;
+
+		case SceneItemKind::Light:
+			ImGui::Text("Directional Light");
+			ImGui::Separator();
+			light_.DrawUi();
+			break;
+
+		case SceneItemKind::Model:
+			if ( selection_.index >= 0 && selection_.index < kModelCount )
+			{
+				models_[selection_.index]->DrawUi(selection_.index == 0 ? "Object 1" : "Object 2");
+			}
+			break;
+
+		case SceneItemKind::Shape:
+			if ( selection_.index >= 0 && selection_.index < static_cast< int >(shapes_.size()) )
+			{
+				shapes_[selection_.index]->DrawUi();
+				ImGui::Separator();
+				if ( ImGui::Button("Delete Shape") )
+				{
+					deleteShapeIndex = selection_.index;
+				}
+			}
+			break;
+
+		case SceneItemKind::Sprite:
+			sprite_.DrawUi();
+			break;
+
+		case SceneItemKind::InstancingDemo:
+			instancing_.DrawUi();
+			break;
+
+		case SceneItemKind::Emitter:
+			if ( selection_.index >= 0 && selection_.index < static_cast< int >(std::size(emitters_)) )
+			{
+				emitters_[selection_.index]->DrawUi();
+			}
+			break;
+
+		default:
+			ImGui::TextDisabled("Select an item in the Hierarchy.");
+			break;
+	}
+
+	ImGui::End();
+
+	// 描画に使う前(このフレームのDrawの前)に消す
+	if ( deleteShapeIndex >= 0 )
+	{
+		DeleteShape(deleteShapeIndex);
+	}
 #endif
 }
 

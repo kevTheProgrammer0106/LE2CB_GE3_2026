@@ -1,15 +1,16 @@
 #include "ModelLoader.h"
-#include "DirectXCommon.h"
+
+#include <algorithm>
 #include <fstream>
 #include <sstream>
-#include <cassert>
 
+#include "Logger.h"
 
 namespace
 {
 	// objの"f"行の1トークン("position/texcoord/normal")を分解して取得する。
 	// - texcoordやnormalが省略されている("v//vn"や"v"だけ)場合は0(未指定)を返す
-	// - 負のindex(相対indexで「最後に追加された要素から数える」形式)にも対応する
+	// - 負のindex(相対index。「最後に追加された要素から数える」形式)にも対応する
 	// 生のindex値(1始まり、負なら相対)をそのまま返す。0は「未指定」を表す。
 	struct RawFaceIndices
 	{
@@ -67,116 +68,176 @@ namespace
 		return Normalize(n);
 	}
 
-	// "f"行の3頂点分を、position/texcoord/normal配列から安全に組み立てる。
-	// vt/vnが省略されている場合や、負の相対indexが使われている場合でも
-	// クラッシュしたり無効なメモリを読んだりしないようにする。
-	void BuildTriangleFromFaceLine(
+	// 面の1頂点分(設定の適用済み)
+	struct FaceCorner
+	{
+		VertexData data{};
+		bool normalMissing = false;
+	};
+
+	// "f"行の1トークンから頂点を組み立てる。
+	// vt/vnが省略されていても、負の相対indexでも、範囲外でも、クラッシュしたり無効なメモリを読んだりしない
+	FaceCorner BuildCorner(
+		const std::string& token,
+		const std::vector<Vector4>& positions,
+		const std::vector<Vector2>& texcoords,
+		const std::vector<Vector3>& normals,
+		const ModelImportSettings& settings)
+	{
+		FaceCorner corner;
+		const RawFaceIndices raw = ParseFaceVertexToken(token);
+
+		const int posIndex = ResolveIndex(raw.position, positions.size());
+		const int uvIndex = ResolveIndex(raw.texcoord, texcoords.size());
+		const int nrmIndex = ResolveIndex(raw.normal, normals.size());
+
+		// position: 必須。範囲外なら安全のため原点にしておく
+		Vector4 position = { 0.0f, 0.0f, 0.0f, 1.0f };
+		if ( posIndex >= 0 && posIndex < static_cast< int >(positions.size()) )
+		{
+			position = positions[posIndex];
+		}
+		if ( settings.flipX )
+		{
+			position.x *= -1.0f;
+		}
+		position.x = position.x * settings.scale + settings.offset.x;
+		position.y = position.y * settings.scale + settings.offset.y;
+		position.z = position.z * settings.scale + settings.offset.z;
+		position.w = 1.0f;
+
+		// texcoord: 省略されていたら(0,0)を使う
+		Vector2 texcoord = { 0.0f, 0.0f };
+		if ( uvIndex >= 0 && uvIndex < static_cast< int >(texcoords.size()) )
+		{
+			texcoord = texcoords[uvIndex];
+			if ( settings.flipV )
+			{
+				texcoord.y = 1.0f - texcoord.y; // DirectXは左上が原点なので、V座標を反転させる
+			}
+		}
+
+		// normal: 省略されていたら後で面法線から計算するので、ここでは印だけつけておく
+		Vector3 normal = { 0.0f, 1.0f, 0.0f };
+		if ( nrmIndex >= 0 && nrmIndex < static_cast< int >(normals.size()) )
+		{
+			normal = normals[nrmIndex];
+			if ( settings.flipX )
+			{
+				normal.x *= -1.0f;
+			}
+		} else
+		{
+			corner.normalMissing = true;
+		}
+
+		corner.data = { position, texcoord, normal };
+		return corner;
+	}
+
+	// "f"行1つ分を三角形に分けて out に足す(4頂点以上は扇形に分割)
+	void AppendFace(
 		std::istringstream& s,
 		const std::vector<Vector4>& positions,
 		const std::vector<Vector2>& texcoords,
 		const std::vector<Vector3>& normals,
-		VertexData outTriangle[3])
+		const ModelImportSettings& settings,
+		std::vector<VertexData>& out)
 	{
-		bool normalMissing[3] = { false, false, false };
-
-		for ( int32_t faceVertex = 0; faceVertex < 3; ++faceVertex )
+		std::vector<FaceCorner> corners;
+		std::string token;
+		while ( s >> token )
 		{
-			std::string vertexDefinition;
-			s >> vertexDefinition; // 頂点情報を読み込む
-
-			RawFaceIndices raw = ParseFaceVertexToken(vertexDefinition);
-
-			int posIndex = ResolveIndex(raw.position, positions.size());
-			int uvIndex = ResolveIndex(raw.texcoord, texcoords.size());
-			int nrmIndex = ResolveIndex(raw.normal, normals.size());
-
-			// position: 必須。範囲外なら安全のため原点にしておく
-			Vector4 position = { 0.0f, 0.0f, 0.0f, 1.0f };
-			if ( posIndex >= 0 && posIndex < static_cast< int >(positions.size()) )
-			{
-				position = positions[posIndex];
-			}
-			position.x *= -1.0f;
-
-			// texcoord: 省略されていたら(0,0)を使う
-			Vector2 texcoord = { 0.0f, 0.0f };
-			if ( uvIndex >= 0 && uvIndex < static_cast< int >(texcoords.size()) )
-			{
-				texcoord = texcoords[uvIndex];
-				texcoord.y = 1.0f - texcoord.y; // DirectXは左上が原点なので、V座標を反転させる
-			}
-
-			// normal: 省略されていたら後で面法線から計算するのでここでは印だけつけておく
-			Vector3 normal = { 0.0f, 1.0f, 0.0f };
-			if ( nrmIndex >= 0 && nrmIndex < static_cast< int >(normals.size()) )
-			{
-				normal = normals[nrmIndex];
-				normal.x *= -1.0f;
-			} else
-			{
-				normalMissing[faceVertex] = true;
-			}
-
-			outTriangle[faceVertex] = { position, texcoord, normal };
+			corners.push_back(BuildCorner(token, positions, texcoords, normals, settings));
+		}
+		if ( corners.size() < 3 )
+		{
+			return; // 面にならない
 		}
 
-		// vnが1頂点でも無かった場合は、面法線を計算して欠けている頂点にだけ適用する
-		// (フラットシェーディング相当。lighting用のnormalがおかしくならないようにするため)
-		if ( normalMissing[0] || normalMissing[1] || normalMissing[2] )
+		for ( size_t i = 1; i + 1 < corners.size(); ++i )
 		{
-			Vector3 faceNormal = CalculateFaceNormal(outTriangle[0].position, outTriangle[1].position, outTriangle[2].position);
-			for ( int32_t i = 0; i < 3; ++i )
+			FaceCorner tri[3] = { corners[0], corners[i], corners[i + 1] };
+
+			// vnが1頂点でも無かった場合は、面法線を計算して欠けている頂点にだけ適用する
+			// (フラットシェーディング相当。lighting用のnormalがおかしくならないようにするため)
+			if ( settings.generateMissingNormals && ( tri[0].normalMissing || tri[1].normalMissing || tri[2].normalMissing ) )
 			{
-				if ( normalMissing[i] )
+				const Vector3 faceNormal = CalculateFaceNormal(tri[0].data.position, tri[1].data.position, tri[2].data.position);
+				for ( FaceCorner& c : tri )
 				{
-					outTriangle[i].normal = faceNormal;
+					if ( c.normalMissing )
+					{
+						c.data.normal = faceNormal;
+					}
 				}
 			}
+
+			// 頂点を逆順で登録することで、回り順を逆にする
+			if ( settings.flipWinding )
+			{
+				out.push_back(tri[2].data);
+				out.push_back(tri[1].data);
+				out.push_back(tri[0].data);
+			} else
+			{
+				out.push_back(tri[0].data);
+				out.push_back(tri[1].data);
+				out.push_back(tri[2].data);
+			}
 		}
+	}
+
+	// 全頂点のバウンディングボックス
+	Bounds ComputeBounds(const std::vector<SubMeshData>& subMeshes)
+	{
+		Bounds bounds;
+		for ( const SubMeshData& sub : subMeshes )
+		{
+			for ( const VertexData& v : sub.vertices )
+			{
+				if ( !bounds.valid )
+				{
+					bounds.min = { v.position.x, v.position.y, v.position.z };
+					bounds.max = bounds.min;
+					bounds.valid = true;
+					continue;
+				}
+				bounds.min.x = std::min(bounds.min.x, v.position.x);
+				bounds.min.y = std::min(bounds.min.y, v.position.y);
+				bounds.min.z = std::min(bounds.min.z, v.position.z);
+				bounds.max.x = std::max(bounds.max.x, v.position.x);
+				bounds.max.y = std::max(bounds.max.y, v.position.y);
+				bounds.max.z = std::max(bounds.max.z, v.position.z);
+			}
+		}
+		return bounds;
 	}
 }
 
-MaterialData LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename)
-{
-	MaterialData materialData; // 構築するMaterialData
-	std::string line; // ファイルから読み込んだ1行分の文字列を格納する変数
-	std::ifstream file(directoryPath + "/" + filename); // ファイルを開く
-	if ( !file.is_open() )
-	{
-		// assert(file.is_open())だけだとRelease(NDEBUG)ビルドでは無音で握りつぶされてしまうため、
-		// ここで必ずログに残すようにする
-		Logger::Log("LoadMaterialTemplateFile: failed to open " + directoryPath + "/" + filename + "\n");
-		assert(false);
-		return materialData; // 開けなかった場合は空のMaterialDataを返す
-	}
-	while ( std::getline(file, line) )
-	{
-		std::string identifier;
-		std::istringstream s(line);
-		s >> identifier; // 1行目の先頭の文字列を取得
-
-		if ( identifier == "map_Kd" )
-		{ // ディフューズマップのファイル名
-			std::string textureFileName;
-			s >> textureFileName;
-			//連結してファイルパスにする
-			materialData.textureFilePath = directoryPath + "/" + textureFileName;
-		}
-	} // Whileの終了
-	return materialData; // 構築したMaterialDataを返す
-}
-std::unordered_map<std::string, MaterialData> LoadMaterialTemplateFileMulti(const std::string& directoryPath, const std::string& filename)
+//===================================================================
+// mtl
+//===================================================================
+std::unordered_map<std::string, MaterialData> LoadMaterialTemplateFile(
+	const std::string& directoryPath, const std::string& filename, std::string* firstName)
 {
 	std::unordered_map<std::string, MaterialData> materials;
 	std::string currentMaterialName;
 	std::string line;
+
+	if ( firstName )
+	{
+		firstName->clear();
+	}
+
 	std::ifstream file(directoryPath + "/" + filename);
 	if ( !file.is_open() )
 	{
-		Logger::Log("LoadMaterialTemplateFileMulti: failed to open " + directoryPath + "/" + filename + "\n");
-		assert(false);
+		// Release(NDEBUG)ビルドでも見えるよう、必ずログに残す
+		Logger::Log("LoadMaterialTemplateFile: failed to open " + directoryPath + "/" + filename + "\n");
 		return materials; // 開けなかった場合は空のマップを返す
 	}
+
 	while ( std::getline(file, line) )
 	{
 		std::string identifier;
@@ -187,170 +248,149 @@ std::unordered_map<std::string, MaterialData> LoadMaterialTemplateFileMulti(cons
 		{
 			s >> currentMaterialName;
 			materials[currentMaterialName] = MaterialData{};
+			if ( firstName && firstName->empty() )
+			{
+				*firstName = currentMaterialName;
+			}
 		} else if ( identifier == "map_Kd" )
-		{
+		{ // ディフューズマップのファイル名
 			std::string textureFileName;
 			s >> textureFileName;
+			// newmtlより前にmap_Kdが来ても落ちないよう、名前が空のマテリアルとして扱う
 			materials[currentMaterialName].textureFilePath = directoryPath + "/" + textureFileName;
+			if ( firstName && firstName->empty() )
+			{
+				*firstName = currentMaterialName;
+			}
 		}
 	}
 	return materials;
 }
 
-ModelData LoadObjFile(const std::string& directoryPath, const std::string& filename)
+//===================================================================
+// obj
+//===================================================================
+MultiMeshModelData LoadModel(const std::string& directoryPath, const std::string& filename, const ModelImportSettings& settings)
 {
-	ModelData modelData; // 構築するModelData
-	std::vector<Vector4> positions; // 頂点座標
-	std::vector<Vector2> texcoords; // テクスチャ座標
-	std::vector<Vector3> normals; // 法線ベクトル
-	std::string line; // ファイルから読み込んだ1行分の文字列を格納する変数
+	MultiMeshModelData result;
 
-	std::ifstream file(directoryPath + "/" + filename); // ファイルを開く
+	std::ifstream file(directoryPath + "/" + filename);
 	if ( !file.is_open() )
 	{
-		// assert(file.is_open())だけだとRelease(NDEBUG)ビルドでは無音で握りつぶされてしまい、
-		// modelData.verticesが空のまま返ってバッファ生成やMap()の失敗につながるため、必ずログを残す
-		Logger::Log("LoadObjFile: failed to open " + directoryPath + "/" + filename + "\n");
-		assert(false);
-		return modelData; // 開けなかった場合は空のModelDataを返す
+		// assertだけだとRelease(NDEBUG)ビルドでは無音で握りつぶされてしまうため、必ずログを残す
+		Logger::Log("LoadModel: failed to open " + directoryPath + "/" + filename + "\n");
+		return result;
 	}
 
+	std::vector<Vector4> positions; // 頂点座標
+	std::vector<Vector2> texcoords; // テクスチャ座標
+	std::vector<Vector3> normals;   // 法線ベクトル
+
+	std::unordered_map<std::string, MaterialData> materials;
+	std::string firstMaterialName;  // usemtlが無いときに使うマテリアル
+
+	std::string pendingObjectName;   // 次のサブメッシュに付ける名前
+	std::string pendingMaterialName; // 次のサブメッシュに使うマテリアル名
+	bool needNewSubMesh = true;      // o / usemtl が来たら次のfで新しいサブメッシュを作る
+
+	std::string line;
 	while ( std::getline(file, line) )
 	{
 		std::string identifier;
 		std::istringstream s(line);
-		s >> identifier; // 1行目の先頭の文字列を取得
-
-		// indentifierの値によって処理を分岐
+		s >> identifier; // 行の先頭の文字列を取得
 
 		if ( identifier == "v" )
 		{ // 頂点座標
 			Vector4 position;
-			s >> position.x >> position.y >> position.z; // x,y,z座標を読み込む
-			position.w = 1.0f; // w座標は1.0fにする
-			positions.push_back(position); // positionsに追加
+			s >> position.x >> position.y >> position.z;
+			position.w = 1.0f;
+			positions.push_back(position);
 		} else if ( identifier == "vt" )
 		{ // テクスチャ座標
 			Vector2 texcoord;
-			s >> texcoord.x >> texcoord.y; // u,v座標を読み込む
-			texcoords.push_back(texcoord); // texcoordsに追加
+			s >> texcoord.x >> texcoord.y;
+			texcoords.push_back(texcoord);
 		} else if ( identifier == "vn" )
 		{ // 法線ベクトル
 			Vector3 normal;
-			s >> normal.x >> normal.y >> normal.z; // x,y,z座標を読み込む
-			normals.push_back(normal); // normalsに追加
-		} else if ( identifier == "f" )
-		{ // 面情報
-			VertexData triangle[3]; // 1つの面は3つの頂点で構成されるので、3つ分の頂点データを格納する配列
-			// vt/vnが省略されている場合や負の相対indexが使われている場合でも
-			// クラッシュ・不正な法線にならないよう、共通のヘルパーで安全に組み立てる
-			BuildTriangleFromFaceLine(s, positions, texcoords, normals, triangle);
-			//頂点を逆順で登録することで、回り順を逆にする
-			modelData.vertices.push_back(triangle[2]);
-			modelData.vertices.push_back(triangle[1]);
-			modelData.vertices.push_back(triangle[0]);
+			s >> normal.x >> normal.y >> normal.z;
+			normals.push_back(normal);
 		} else if ( identifier == "mtllib" )
 		{ // マテリアルライブラリのファイル名
 			std::string materialFileName;
-			s >> materialFileName; // マテリアルライブラリのファイル名を取得
-			//マテリアルライブラリのファイルを読み込む
-			modelData.material = LoadMaterialTemplateFile(directoryPath, materialFileName);
-		} else if ( identifier == "Kd" )
-		{
-			std::string kDColor;
-			s >> kDColor; // Kdの値を取得
+			s >> materialFileName;
+			materials = LoadMaterialTemplateFile(directoryPath, materialFileName, &firstMaterialName);
 		} else if ( identifier == "o" )
-		{ // オブジェクト名
-			std::string objectName;
-			s >> objectName; // オブジェクト名を取得
-			// 今回はオブジェクト名は使用しないので、特に処理は行わない
+		{ // オブジェクト名: ここから新しいサブメッシュ
+			s >> pendingObjectName;
+			needNewSubMesh = true;
 		} else if ( identifier == "usemtl" )
-		{ // マテリアルの使用宣言
-			std::string materialName;
-			s >> materialName; // マテリアル名を取得
-			// 今回はマテリアル名は使用しないので、特に処理は行わない
-		}
-	} // Whileの終了
-
-	if ( modelData.vertices.empty() )
-	{
-		// ファイルは開けたが、中身が空(あるいは想定した形式でない)だった場合もここで気付けるようにする
-		Logger::Log("LoadObjFile: " + directoryPath + "/" + filename + " opened but contains no vertices.\n");
-	}
-
-	return modelData; // 構築したModelDataを返す
-}
-MultiMeshModelData LoadObjFileMulti(const std::string& directoryPath, const std::string& filename)
-{
-	MultiMeshModelData result;
-	std::unordered_map<std::string, MaterialData> materials;
-	std::vector<Vector4> positions;
-	std::vector<Vector2> texcoords;
-	std::vector<Vector3> normals;
-	std::string line;
-	std::ifstream file(directoryPath + "/" + filename);
-	if ( !file.is_open() )
-	{
-		Logger::Log("LoadObjFileMulti: failed to open " + directoryPath + "/" + filename + "\n");
-		assert(false);
-		return result; // 開けなかった場合は空のMultiMeshModelDataを返す
-	}
-
-	SubMeshData* currentSubMesh = nullptr;
-	auto StartNewSubMesh = [&] (const std::string& materialName)
-	{
-		result.subMeshes.push_back(SubMeshData{});
-		currentSubMesh = &result.subMeshes.back();
-		if ( !materialName.empty() && materials.contains(materialName) )
-		{
-			currentSubMesh->material = materials[materialName];
-		}
-	};
-
-	while ( std::getline(file, line) )
-	{
-		std::string identifier;
-		std::istringstream s(line);
-		s >> identifier;
-
-		if ( identifier == "v" )
-		{
-			Vector4 position; s >> position.x >> position.y >> position.z; position.w = 1.0f;
-			positions.push_back(position);
-		} else if ( identifier == "vt" )
-		{
-			Vector2 texcoord; s >> texcoord.x >> texcoord.y;
-			texcoords.push_back(texcoord);
-		} else if ( identifier == "vn" )
-		{
-			Vector3 normal; s >> normal.x >> normal.y >> normal.z;
-			normals.push_back(normal);
-		} else if ( identifier == "mtllib" )
-		{
-			std::string materialFileName; s >> materialFileName;
-			materials = LoadMaterialTemplateFileMulti(directoryPath, materialFileName);
-		} else if ( identifier == "o" )
-		{
-			std::string objectName; s >> objectName;
-			StartNewSubMesh(""); // オブジェクトが変わったら新しいサブメッシュ
-		} else if ( identifier == "usemtl" )
-		{
-			std::string materialName; s >> materialName;
-			StartNewSubMesh(materialName); // マテリアルが変わっても新しいサブメッシュ
+		{ // マテリアルの使用宣言: ここから新しいサブメッシュ
+			s >> pendingMaterialName;
+			needNewSubMesh = true;
 		} else if ( identifier == "f" )
-		{
-			if ( !currentSubMesh ) StartNewSubMesh(""); // 保険:oやusemtlより前にfが来た場合
-			VertexData triangle[3];
-			BuildTriangleFromFaceLine(s, positions, texcoords, normals, triangle);
-			currentSubMesh->vertices.push_back(triangle[2]);
-			currentSubMesh->vertices.push_back(triangle[1]);
-			currentSubMesh->vertices.push_back(triangle[0]);
+		{ // 面情報
+			if ( needNewSubMesh )
+			{
+				// 面が来て初めてサブメッシュを作る(oとusemtlが続けて来ても、空のサブメッシュができない)
+				SubMeshData sub;
+				sub.name = pendingObjectName;
+
+				auto it = materials.find(pendingMaterialName);
+				if ( it == materials.end() && !pendingMaterialName.empty() )
+				{
+					Logger::Log("LoadModel: material \"" + pendingMaterialName + "\" not found in " + filename + "\n");
+				}
+				if ( it == materials.end() )
+				{
+					it = materials.find(firstMaterialName); // 名前が無い・見つからないときは最初のマテリアル
+				}
+				if ( it != materials.end() )
+				{
+					sub.material = it->second;
+				}
+				if ( !settings.textureOverride.empty() )
+				{
+					sub.material.textureFilePath = settings.textureOverride;
+				}
+
+				result.subMeshes.push_back(std::move(sub));
+				needNewSubMesh = false;
+			}
+			AppendFace(s, positions, texcoords, normals, settings, result.subMeshes.back().vertices);
 		}
 	}
+
+	// 面を持たないままのサブメッシュは無い(fが来た時だけ作るため)が、念のため空を取り除く
+	std::erase_if(result.subMeshes, [] (const SubMeshData& sub)
+	{
+		return sub.vertices.empty();
+	});
 
 	if ( result.subMeshes.empty() )
 	{
-		Logger::Log("LoadObjFileMulti: " + directoryPath + "/" + filename + " opened but produced no submeshes.\n");
+		// ファイルは開けたが、中身が空(あるいは想定した形式でない)だった場合もここで気付けるようにする
+		Logger::Log("LoadModel: " + directoryPath + "/" + filename + " opened but contains no faces.\n");
+		return result;
+	}
+
+	result.bounds = ComputeBounds(result.subMeshes);
+
+	// 中心を原点に移す(boundsも合わせて更新する)
+	if ( settings.centerOnOrigin && result.bounds.valid )
+	{
+		const Vector3 center = result.bounds.Center();
+		for ( SubMeshData& sub : result.subMeshes )
+		{
+			for ( VertexData& v : sub.vertices )
+			{
+				v.position.x -= center.x;
+				v.position.y -= center.y;
+				v.position.z -= center.z;
+			}
+		}
+		result.bounds = ComputeBounds(result.subMeshes);
 	}
 
 	return result;

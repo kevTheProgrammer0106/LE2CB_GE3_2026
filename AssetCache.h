@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "ModelLoader.h"
 #include "ResourceObject.h"
 #include "WorldTransform.h"
 
@@ -51,6 +52,8 @@ struct SubMeshResource
 struct ModelResource
 {
 	std::vector<SubMeshResource> subMeshes;
+	// 読み込み設定(scale・offsetなど)を適用した後の範囲。当たり判定やカメラの注視に使える
+	Bounds bounds;
 };
 
 /// <summary>
@@ -75,6 +78,11 @@ public:
 	{
 		return particleTexture_;
 	}
+	/// 1x1の白。色(Material::color)だけで見せたい図形用
+	const TextureResource& GetWhiteTexture() const
+	{
+		return whiteTexture_;
+	}
 
 	/// 画像を読み込み、GPUへアップロードコマンドを積み、SRVを作って返す。
 	/// 中間リソースは dx.FlushUploadCommands() が終わるまで keepAlive に保持しておくこと
@@ -98,4 +106,5 @@ private:
 	std::unordered_map<ModelNode, ModelResource> models_;
 	TextureResource spriteTexture_;
 	TextureResource particleTexture_;
+	TextureResource whiteTexture_;
 };

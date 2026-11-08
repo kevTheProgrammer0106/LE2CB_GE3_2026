@@ -1,5 +1,9 @@
 #pragma once
 
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "BlendModes.h"
 #include "IScene.h"
 #include "InstancingObject.h"
@@ -7,15 +11,45 @@
 #include "Particle.h"
 #include "RenderObject.h"
 #include "SceneCamera.h"
+#include "ShapeObject.h"
 #include "Sprite.h"
 
 class DirectXCommon;
 class AssetCache;
 class ParticleLibrary;
 
+// Hierarchyに並ぶ項目の種類
+enum class SceneItemKind
+{
+	None,
+	Camera,
+	Light,
+	Model,          // RenderObject(object1_ / object2_)
+	Shape,          // ShapeObject(箱・線・三角形・球・円錐。追加・削除できる)
+	Sprite,
+	InstancingDemo,
+	Emitter,        // ParticleEmitter
+};
+
+// Hierarchyで選んでいる項目(kind + その種類の中での番号)
+struct SceneSelection
+{
+	SceneItemKind kind = SceneItemKind::None;
+	int index = 0;
+
+	bool Is(SceneItemKind k, int i = 0) const
+	{
+		return kind == k && index == i;
+	}
+};
+
 /// <summary>
-/// ゲームウィンドウの中身。モデル2つ + スプライト + インスタンシングのデモ。
-/// カメラ・ライト・定数バッファはこのシーンだけのもの(パーティクルエディタとは共有しない)
+/// ゲームウィンドウの中身。モデル2つ + 図形 + スプライト + インスタンシング + パーティクル。
+/// カメラ・ライト・定数バッファはこのシーンだけのもの(パーティクルエディタとは共有しない)。
+///
+/// 「Hierarchy」と「Properties」の2つのImGuiウィンドウ(仮のオブジェクト管理UI)を持つ:
+///   Hierarchy  : シーン内の物を一覧にする。表示の切り替え・選択・図形の追加
+///   Properties : 選んだ物の値を編集する
 /// </summary>
 class GameScene : public IScene
 {
@@ -30,6 +64,10 @@ public:
 
 	/// UIの「Open Particle Editor」ボタンが押されていたら true を返し、フラグを下ろす
 	bool ConsumeOpenEditorRequest();
+
+	/// 図形をシーンに追加する(コードからもHierarchyの「Add」ボタンからも使う)。
+	/// 名前が空なら「Box 1」のように自動で付ける。追加した図形は Hierarchy に現れる
+	ShapeObject* AddShape(ShapeType type, const std::string& name = "");
 
 private:
 	SceneCamera camera_;
@@ -51,6 +89,24 @@ private:
 
 	/// 指定した描画方式のエミッタだけ描く(3D → 2D の順で呼ぶ)
 	void DrawEmitters(const RenderContext& context, ParticleRenderMode mode, D3D12_GPU_VIRTUAL_ADDRESS lightAddress);
+
+	// --- 図形 ---
+	DirectXCommon* dx_ = nullptr; // 図形を後から追加するときのGPUバッファ生成に使う
+	std::vector<std::unique_ptr<ShapeObject>> shapes_;
+	int shapeCounters_[kShapeTypeCount] = {}; // 自動で付ける名前の連番
+
+	// --- Hierarchy / Properties ---
+	static constexpr int kModelCount = 2;
+	RenderObject* models_[kModelCount] = { &object1_, &object2_ };
+	bool modelVisible_[kModelCount] = { true, true };
+
+	SceneSelection selection_;
+
+	void DrawHierarchyUi();
+	void DrawPropertiesUi();
+	/// Hierarchyの1行(表示チェック + 選択)。visibleがnullptrならチェックなし
+	void HierarchyRow(const char* label, SceneItemKind kind, int index, bool* visible);
+	void DeleteShape(int index);
 
 	bool openEditorRequested_ = false;
 };

@@ -13,6 +13,7 @@ class DirectXCommon;
 /// PSOの種類:
 ///   - Sprite     : スプライト用(通常のアルファブレンド)
 ///   - Model      : モデル用(ブレンドモードごと)
+///   - Line       : 線(LINELIST)用。ShapeObjectのLine図形で使う
 ///   - Instancing : Particle.VS(StructuredBufferで行列を受け取る)+ Particle.PS。インスタンシング描画用
 ///   - Particle3d : ParticleInstance.VS/PS(StructuredBufferで行列+色を受け取る)。深度テストあり・深度書き込みなし
 ///   - Particle2d : 同じシェーダーで深度テストなし。画面に直接重ねる2Dパーティクル用
@@ -38,6 +39,11 @@ public:
 	{
 		return instancing_[static_cast< int >( mode )].Get();
 	}
+	/// 線(LINELIST)を描くShapeObject用。それ以外はModelと同じ設定(通常のアルファブレンド)
+	ID3D12PipelineState* GetLinePso() const
+	{
+		return line_.Get();
+	}
 	/// 3Dビルボードのパーティクル用
 	ID3D12PipelineState* GetParticle3dPso(ParticleBlendMode mode) const
 	{
@@ -54,6 +60,7 @@ private:
 
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature_;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> sprite_;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> line_;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> model_[kBlendModeCount];
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> instancing_[kBlendModeCount];
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> particle3d_[kBlendModeCount];

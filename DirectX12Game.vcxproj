@@ -191,6 +191,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="RenderObject.cpp" />
     <ClCompile Include="ResourceObject.cpp" />
     <ClCompile Include="SceneCamera.cpp" />
+    <ClCompile Include="ShapeGeometry.cpp" />
+    <ClCompile Include="ShapeObject.cpp" />
     <ClCompile Include="SoundManager.cpp" />
     <ClCompile Include="Sprite.cpp" />
     <ClCompile Include="StringUtility.cpp" />
@@ -269,6 +271,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="RenderObject.h" />
     <ClInclude Include="ResourceObject.h" />
     <ClInclude Include="SceneCamera.h" />
+    <ClInclude Include="ShapeGeometry.h" />
+    <ClInclude Include="ShapeObject.h" />
     <ClInclude Include="SoundManager.h" />
     <ClInclude Include="Sprite.h" />
     <ClInclude Include="StringUtility.h" />
