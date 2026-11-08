@@ -133,7 +133,13 @@ void PipelineManager::Initialize(DirectXCommon& dx, DXGI_FORMAT rtvFormat)
 	ComPtr<IDxcBlob> ps = dx.CompileShader(L"Object3D.PS.hlsl", L"ps_6_0");
 	ComPtr<IDxcBlob> particleVs = dx.CompileShader(L"Particle.VS.hlsl", L"vs_6_0");
 	ComPtr<IDxcBlob> particlePs = dx.CompileShader(L"Particle.PS.hlsl", L"ps_6_0");
-	assert(vs && ps && particleVs && particlePs);
+	ComPtr<IDxcBlob> emitterVs = dx.CompileShader(L"ParticleInstance.VS.hlsl", L"vs_6_0");
+	ComPtr<IDxcBlob> emitterPs = dx.CompileShader(L"ParticleInstance.PS.hlsl", L"ps_6_0");
+	assert(vs && ps && particleVs && particlePs && emitterVs && emitterPs);
+
+	// 2Dパーティクルは深度テストを使わず、常に手前に重ねる
+	D3D12_DEPTH_STENCIL_DESC particle2dDepthDesc = particleDepthDesc;
+	particle2dDepthDesc.DepthEnable = false;
 
 	// ベースのPSO設定(モデル/スプライト用)
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC baseDesc{};
@@ -179,15 +185,20 @@ void PipelineManager::Initialize(DirectXCommon& dx, DXGI_FORMAT rtvFormat)
 		hr = device->CreateGraphicsPipelineState(&instancingDesc, IID_PPV_ARGS(&instancing_[i]));
 		assert(SUCCEEDED(hr));
 
-		// エミッタ用(Object3D.VS: パーティクルごとのCBVから行列を読む + Particle.PS)
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC emitterDesc = baseDesc;
-		emitterDesc.PS = { particlePs->GetBufferPointer(), particlePs->GetBufferSize() };
-		emitterDesc.DepthStencilState = particleDepthDesc;
-		emitterDesc.BlendState = blend;
-		hr = device->CreateGraphicsPipelineState(&emitterDesc, IID_PPV_ARGS(&emitter_[i]));
+		// 3Dパーティクル(ParticleInstance: 行列+色をStructuredBufferから読む。深度テストあり)
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC particle3dDesc = baseDesc;
+		particle3dDesc.VS = { emitterVs->GetBufferPointer(), emitterVs->GetBufferSize() };
+		particle3dDesc.PS = { emitterPs->GetBufferPointer(), emitterPs->GetBufferSize() };
+		particle3dDesc.DepthStencilState = particleDepthDesc;
+		particle3dDesc.BlendState = blend;
+		hr = device->CreateGraphicsPipelineState(&particle3dDesc, IID_PPV_ARGS(&particle3d_[i]));
+		assert(SUCCEEDED(hr));
+
+		// 2Dパーティクル(同じシェーダー・深度テストなし)
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC particle2dDesc = particle3dDesc;
+		particle2dDesc.DepthStencilState = particle2dDepthDesc;
+		hr = device->CreateGraphicsPipelineState(&particle2dDesc, IID_PPV_ARGS(&particle2d_[i]));
 		assert(SUCCEEDED(hr));
 		( void ) hr;
-
-		emitterRaw_[i] = emitter_[i].Get();
 	}
 }

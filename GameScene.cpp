@@ -8,7 +8,7 @@
 #include "externals/imgui/imgui.h"
 #endif
 
-void GameScene::Initialize(DirectXCommon& dx, const AssetCache& assets)
+void GameScene::Initialize(DirectXCommon& dx, const AssetCache& assets, ParticleLibrary& library)
 {
 	camera_.Initialize();
 	light_.Initialize(dx);
@@ -20,9 +20,16 @@ void GameScene::Initialize(DirectXCommon& dx, const AssetCache& assets)
 
 	sprite_.Initialize(dx, assets.GetSpriteTexture().srvGpu);
 	instancing_.Initialize(dx);
+
+	// パーティクル: 名前 + 初期設定。resources/particles/名前.particle があればそちらが優先される
+	fire_.Initialize(dx, library, "Fire", ParticleConfig::MakeFire());
+	fire_.position = { 0.0f, -2.0f, 10.0f };
+
+	sparkle_.Initialize(dx, library, "Sparkle2D", ParticleConfig::MakeSparkle2D());
+	sparkle_.position = { 1000.0f, 600.0f, 0.0f }; // 2Dはピクセル座標(左上が原点)
 }
 
-void GameScene::Update(float /*deltaTime*/, InputManager& input, float clientWidth, float clientHeight)
+void GameScene::Update(float deltaTime, InputManager& input, float clientWidth, float clientHeight)
 {
 	camera_.Update(input);
 
@@ -31,6 +38,12 @@ void GameScene::Update(float /*deltaTime*/, InputManager& input, float clientWid
 	object2_.Update(viewProjection);
 	sprite_.Update(clientWidth, clientHeight);
 	instancing_.Update(viewProjection);
+
+	for ( ParticleEmitter* emitter : emitters_ )
+	{
+		emitter->Update(deltaTime); // ライブラリの更新(ホットリロード)もここで取り込む
+		emitter->BuildInstances(camera_.GetViewMatrix(), camera_.GetProjectionMatrix(), clientWidth, clientHeight);
+	}
 }
 
 void GameScene::Draw(const RenderContext& context)
@@ -53,6 +66,29 @@ void GameScene::Draw(const RenderContext& context)
 
 	// --- インスタンシング描画 ---
 	instancing_.Draw(commandList, pipelines, assets.GetParticleTexture().srvGpu, lightAddress);
+
+	// --- パーティクル: 3Dビルボード → 2Dスクリーン(2Dは最後に重ねる) ---
+	DrawEmitters(context, ParticleRenderMode::Billboard3D, lightAddress);
+	DrawEmitters(context, ParticleRenderMode::Screen2D, lightAddress);
+}
+
+void GameScene::DrawEmitters(const RenderContext& context, ParticleRenderMode mode, D3D12_GPU_VIRTUAL_ADDRESS lightAddress)
+{
+	for ( ParticleEmitter* emitter : emitters_ )
+	{
+		if ( emitter->GetRenderMode() == mode )
+		{
+			emitter->Draw(context.commandList, *context.pipelines, context.assets->GetParticleTexture().srvGpu, lightAddress);
+		}
+	}
+}
+
+void GameScene::Shutdown()
+{
+	for ( ParticleEmitter* emitter : emitters_ )
+	{
+		emitter->Shutdown();
+	}
 }
 
 void GameScene::DrawUi()
@@ -88,6 +124,14 @@ void GameScene::DrawUi()
 	ImGui::Separator();
 
 	instancing_.DrawUi();
+	ImGui::Separator();
+
+	ImGui::Text("Particles");
+	for ( ParticleEmitter* emitter : emitters_ )
+	{
+		ImGui::Separator();
+		emitter->DrawUi();
+	}
 
 	ImGui::End();
 #endif

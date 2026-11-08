@@ -14,8 +14,8 @@ class DirectXCommon;
 ///   - Sprite     : スプライト用(通常のアルファブレンド)
 ///   - Model      : モデル用(ブレンドモードごと)
 ///   - Instancing : Particle.VS(StructuredBufferで行列を受け取る)+ Particle.PS。インスタンシング描画用
-///   - Emitter    : Object3D.VS(CBVで行列を受け取る)+ Particle.PS。ParticleEmitter::Draw 用。
-///                  ParticleEmitterはパーティクルごとにCBVを張るので、Particle.VSでは読み先が合わない
+///   - Particle3d : ParticleInstance.VS/PS(StructuredBufferで行列+色を受け取る)。深度テストあり・深度書き込みなし
+///   - Particle2d : 同じシェーダーで深度テストなし。画面に直接重ねる2Dパーティクル用
 /// </summary>
 class PipelineManager
 {
@@ -38,10 +38,15 @@ public:
 	{
 		return instancing_[static_cast< int >( mode )].Get();
 	}
-	/// ParticleEmitter::Draw に渡す用(ブレンドモードでインデックスする配列)
-	ID3D12PipelineState* const* GetEmitterPsoTable() const
+	/// 3Dビルボードのパーティクル用
+	ID3D12PipelineState* GetParticle3dPso(ParticleBlendMode mode) const
 	{
-		return emitterRaw_;
+		return particle3d_[static_cast< int >( mode )].Get();
+	}
+	/// 2Dスクリーンのパーティクル用
+	ID3D12PipelineState* GetParticle2dPso(ParticleBlendMode mode) const
+	{
+		return particle2d_[static_cast< int >( mode )].Get();
 	}
 
 private:
@@ -51,6 +56,6 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> sprite_;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> model_[kBlendModeCount];
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> instancing_[kBlendModeCount];
-	Microsoft::WRL::ComPtr<ID3D12PipelineState> emitter_[kBlendModeCount];
-	ID3D12PipelineState* emitterRaw_[kBlendModeCount] = {};
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> particle3d_[kBlendModeCount];
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> particle2d_[kBlendModeCount];
 };

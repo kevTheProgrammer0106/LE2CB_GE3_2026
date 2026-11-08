@@ -8,6 +8,7 @@
 #include "FrameTimer.h"
 #include "GameScene.h"
 #include "ParticleEditor.h"
+#include "ParticleLibrary.h"
 #include "PipelineManager.h"
 
 /// <summary>
@@ -41,6 +42,8 @@ private:
 	DirectXCommon dx_;
 	PipelineManager pipelines_;
 	AssetCache assets_;
+	// パーティクル設定の共有置き場(GameSceneのエミッタとParticleEditorを繋ぐ。ホットリロードの中継点)
+	ParticleLibrary particleLibrary_;
 
 	// ウィンドウ
 	AppWindow gameWindow_;

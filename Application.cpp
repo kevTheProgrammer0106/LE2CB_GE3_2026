@@ -33,8 +33,9 @@ void Application::Initialize(HINSTANCE instance)
 	assets_.Initialize(dx_);
 
 	// シーン
-	gameScene_.Initialize(dx_, assets_);
-	particleEditor_.Initialize(dx_);
+	// GameSceneが先: エミッタがライブラリに登録されてから、エディタが一覧を作る
+	gameScene_.Initialize(dx_, assets_, particleLibrary_);
+	particleEditor_.Initialize(dx_, particleLibrary_);
 
 	frameTimer_.Initialize(kTargetFps);
 
@@ -48,12 +49,23 @@ void Application::Run()
 		// 目標FPSまで待ち、前フレームからの実測経過時間を得る(固定の1/60秒ではない)
 		const float deltaTime = frameTimer_.Update();
 
+		// resources/particles/*.particle の外部更新を監視する(変わっていればホットリロード)
+		particleLibrary_.Update(deltaTime);
+
 		const bool gameRendered = RunWindowFrame(gameWindow_, gameScene_, deltaTime);
 		RunWindowFrame(editorWindow_, particleEditor_, deltaTime);
 
 		// F2 かUIのボタンでエディタウィンドウを(再)表示する
 		if ( gameScene_.ConsumeOpenEditorRequest() || gameWindow_.GetInput().TriggerKey(DIK_F2) )
 		{
+			ShowEditorWindow();
+		}
+
+		// ゲーム側の「Edit in Particle Editor」ボタン: そのエミッタを選んでエディタを表示する
+		int editIndex = -1;
+		if ( particleLibrary_.ConsumeEditRequest(editIndex) )
+		{
+			particleEditor_.SelectEntry(editIndex);
 			ShowEditorWindow();
 		}
 
