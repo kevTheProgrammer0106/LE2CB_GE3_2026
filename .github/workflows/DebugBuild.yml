@@ -18,7 +18,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@v3
@@ -27,4 +27,4 @@ jobs:
 
       - name: Build
         run: |
-          msbuild "${{ env.SOLUTION_FILE_PATH }}" /p:Platform=x64 /p:Configuration=${{ env.CONFIGURATION }}
+          msbuild "${{ env.SOLUTION_FILE_PATH }}" /m /p:Platform=x64 /p:Configuration=${{ env.CONFIGURATION }}
