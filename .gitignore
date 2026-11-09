@@ -21,6 +21,7 @@
 
 !resources/utah_teapot.obj
 
+*.ini
 
 # Precompiled Headers
 *.gch
