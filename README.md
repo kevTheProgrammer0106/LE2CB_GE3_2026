@@ -1,1 +1,2 @@
 [![DebugBuild](https://github.com/kevTheProgrammer0106/LE2CB_GE3_2026/actions/workflows/DebugBuild.yml/badge.svg)](https://github.com/kevTheProgrammer0106/LE2CB_GE3_2026/actions/workflows/DebugBuild.yml)
+[![DevelopmentBuild](https://github.com/kevTheProgrammer0106/LE2CB_GE3_2026/actions/workflows/main.yml/badge.svg)](https://github.com/kevTheProgrammer0106/LE2CB_GE3_2026/actions/workflows/main.yml)
