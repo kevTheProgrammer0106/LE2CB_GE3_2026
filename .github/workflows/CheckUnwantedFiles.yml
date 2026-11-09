@@ -10,15 +10,12 @@ on:
     branches:
       - master
 
-# 検出する不要なファイルのパターンを定義する環境変数。
-# --- 重要 ---
-# プロジェクトのニーズに合わせて、これらのリストを変更してください
-# パターンはスペース区切りで指定します。    
+# 検出する不要なファイルのパターンを定義する環境変数
 env:
-  # 特定のファイル名(拡張子など)のパターン
+  # 特定のファイル名（拡張子など）のパターン
   UNWANTED_NAME_PATTERNS: "*.pdb *.ilk *.user *.ncb *.suo *.log *.dmp *.ipch imgui.ini desktop.ini dxcompiler.dll dxil.dll"
 
-  # ディレクトリ名のパターン(ビルド出力フォルダなど)
+  # ディレクトリ名のパターン（ビルド出力フォルダなど）
   UNWANTED_DIR_PATTERNS: "generated x64 win32 arm64 .vs bin ipch logs Dump"
 
 jobs:
@@ -28,54 +25,52 @@ jobs:
 
     steps:
       - name: リポジトリをチェックアウト
-        uses: actions/checkout@v7
+        uses: actions/checkout@v6
 
       - name: 不要なファイルとディレクトリを検索 (bash)
         shell: bash
         run: |
-          set -euo pipefail
+          # ディレクトリとファイルのパターンを配列に変換
+          DIR_PATTERNS=()
+          NAME_PATTERNS=()
 
-          # 環境変数からパターン配列を作成
-          read -r -a NAME_PATTERNS <<< "$UNWANTED_NAME_PATTERNS"
           read -r -a DIR_PATTERNS <<< "$UNWANTED_DIR_PATTERNS"
+          read -r -a NAME_PATTERNS <<< "$UNWANTED_NAME_PATTERNS"
 
-          # ディレクトリ検索条件を構築
+          # ディレクトリ条件を構築
           DIR_CONDITIONS=()
-
           for pattern in "${DIR_PATTERNS[@]}"; do
-            if ((${#DIR_CONDITIONS[@]} > 0)); then
-              DIR_CONDITIONS+=( -o )
+            if [ ${#DIR_CONDITIONS[@]} -gt 0 ]; then
+              DIR_CONDITIONS+=(-o)
             fi
-
-            DIR_CONDITIONS+=( -iname "$pattern" )
+            DIR_CONDITIONS+=(-iname "$pattern")
           done
 
-          # ファイル検索条件を構築
+          # ファイル条件を構築
           NAME_CONDITIONS=()
-
           for pattern in "${NAME_PATTERNS[@]}"; do
-            if ((${#NAME_CONDITIONS[@]} > 0)); then
-              NAME_CONDITIONS+=( -o )
+            if [ ${#NAME_CONDITIONS[@]} -gt 0 ]; then
+              NAME_CONDITIONS+=(-o)
             fi
-
-            NAME_CONDITIONS+=( -iname "$pattern" )
+            NAME_CONDITIONS+=(-iname "$pattern")
           done
 
           # 1回の find 実行で全件を検索
           # 1. .git ディレクトリを除外
-          # 2. 不要なディレクトリを検索して出力し、中身を枝刈り
+          # 2. 不要なディレクトリを検索し、検出したら出力して枝刈り
           # 3. 不要なファイルを検索して出力
-          UNWANTED_LIST=$(
-            find . \
-              -path './.git' -prune -o \
-              \( -type d \( "${DIR_CONDITIONS[@]}" \) -print -prune \) -o \
-              \( -type f \( "${NAME_CONDITIONS[@]}" \) -print \)
-          )
+          UNWANTED_LIST=$(find . -path "./.git" -prune -o \
+            \( \
+              \( "${DIR_CONDITIONS[@]}" \) -type d -print -prune \
+            \) -o \
+            \( \
+              \( "${NAME_CONDITIONS[@]}" \) -type f -print \
+            \))
 
-          # 検出結果があればエラーとして出力
-          if [[ -n "$UNWANTED_LIST" ]]; then
+          # 検出結果があればエラーとして出力し、失敗させる
+          if [ -n "$UNWANTED_LIST" ]; then
             echo "::error::不要なファイルまたはディレクトリが見つかりました!"
-            printf '%s\n' "$UNWANTED_LIST"
+            echo "$UNWANTED_LIST"
             exit 1
           fi
 
