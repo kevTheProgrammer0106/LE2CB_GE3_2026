@@ -129,12 +129,12 @@ void PipelineManager::Initialize(DirectXCommon& dx, DXGI_FORMAT rtvFormat)
 	particleDepthDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 
 	// シェーダー
-	ComPtr<IDxcBlob> vs = dx.CompileShader(L"Object3D.VS.hlsl", L"vs_6_0");
-	ComPtr<IDxcBlob> ps = dx.CompileShader(L"Object3D.PS.hlsl", L"ps_6_0");
-	ComPtr<IDxcBlob> particleVs = dx.CompileShader(L"Particle.VS.hlsl", L"vs_6_0");
-	ComPtr<IDxcBlob> particlePs = dx.CompileShader(L"Particle.PS.hlsl", L"ps_6_0");
-	ComPtr<IDxcBlob> emitterVs = dx.CompileShader(L"ParticleInstance.VS.hlsl", L"vs_6_0");
-	ComPtr<IDxcBlob> emitterPs = dx.CompileShader(L"ParticleInstance.PS.hlsl", L"ps_6_0");
+	ComPtr<IDxcBlob> vs = dx.CompileShader(L"resources/shaders/Object3D.VS.hlsl", L"vs_6_0");
+	ComPtr<IDxcBlob> ps = dx.CompileShader(L"resources/shaders/Object3D.PS.hlsl", L"ps_6_0");
+	ComPtr<IDxcBlob> particleVs = dx.CompileShader(L"resources/shaders/Particle.VS.hlsl", L"vs_6_0");
+	ComPtr<IDxcBlob> particlePs = dx.CompileShader(L"resources/shaders/Particle.PS.hlsl", L"ps_6_0");
+	ComPtr<IDxcBlob> emitterVs = dx.CompileShader(L"resources/shaders/ParticleInstance.VS.hlsl", L"vs_6_0");
+	ComPtr<IDxcBlob> emitterPs = dx.CompileShader(L"resources/shaders/ParticleInstance.PS.hlsl", L"ps_6_0");
 	assert(vs && ps && particleVs && particlePs && emitterVs && emitterPs);
 
 	// 2Dパーティクルは深度テストを使わず、常に手前に重ねる
@@ -183,8 +183,8 @@ void PipelineManager::Initialize(DirectXCommon& dx, DXGI_FORMAT rtvFormat)
 
 	// デバッグ線: 頂点に色を持つ専用シェーダー。深度テストなしで、常に手前に重ねる
 	{
-		ComPtr<IDxcBlob> debugVs = dx.CompileShader(L"DebugLine.VS.hlsl", L"vs_6_0");
-		ComPtr<IDxcBlob> debugPs = dx.CompileShader(L"DebugLine.PS.hlsl", L"ps_6_0");
+		ComPtr<IDxcBlob> debugVs = dx.CompileShader(L"resources/shaders/DebugLine.VS.hlsl", L"vs_6_0");
+		ComPtr<IDxcBlob> debugPs = dx.CompileShader(L"resources/shaders/DebugLine.PS.hlsl", L"ps_6_0");
 		assert(debugVs && debugPs);
 
 		D3D12_INPUT_ELEMENT_DESC debugElements[2] = {};

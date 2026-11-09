@@ -1,5 +1,4 @@
 #include "Sprite.h"
-
 #include "DirectXCommon.h"
 #include "PipelineManager.h"
 

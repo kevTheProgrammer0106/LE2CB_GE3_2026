@@ -1,7 +1,26 @@
 ### C++
 # Object files
 *.o
-*.obj
+[Dd]bug/.obj
+[Dd]ebug/.obj
+[Dd]ebugPublic/.obj
+[Rr]elease/.obj
+[Rr]eleases/.obj
+
+!resources/axis.obj
+
+!resources/multiMaterial.obj
+
+!resources/multiMesh.obj
+
+!resources/plane.obj
+
+!resources/suzanne.obj
+
+!resources/teapot.obj
+
+!resources/utah_teapot.obj
+
 
 # Precompiled Headers
 *.gch
@@ -29,25 +48,6 @@
 *.dSYM/
 *.idb
 *.pdb
-
-### Objective-C
-# Xcode user settings
-xcuserdata/
-
-# Xcode build data
-DerivedData/
-
-# Obj-C/Swift specific
-*.hmap
-
-# App packaging
-*.ipa
-*.dSYM.zip
-*.dSYM
-
-# Playgrounds
-timeline.xctimeline
-playground.xcworkspace
 
 ### Windows
 # Windows thumbnail cache files
@@ -94,3 +94,13 @@ x86/
 
 # Publish Web Output
 *.[Pp]ublish.xml
+
+# Date/Time Log Output
+*.log
+/logs
+
+# Crash Dump
+*.dmp
+Dumps/
+
+imgui.ini

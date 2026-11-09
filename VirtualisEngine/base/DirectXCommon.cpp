@@ -405,6 +405,7 @@ ComPtr<IDxcBlob> DirectXCommon::CompileShader(const std::wstring& filePath, cons
 	shaderSourceBuffer.Size = shaderSource->GetBufferSize();
 	shaderSourceBuffer.Encoding = DXC_CP_UTF8; // UTF8の文字コードであることを通知
 
+
 	LPCWSTR arguments[] = {
 		filePath.c_str(),      // コンパイル対象のhlslファイル名
 		L"-E", L"main",        // エントリーポイントの指定。基本的にmain以外にはしない
