@@ -1,2 +1,3 @@
 [![DebugBuild](https://github.com/kevTheProgrammer0106/LE2CB_GE3_2026/actions/workflows/DebugBuild.yml/badge.svg)](https://github.com/kevTheProgrammer0106/LE2CB_GE3_2026/actions/workflows/DebugBuild.yml)
-[![DevelopmentBuild](https://github.com/kevTheProgrammer0106/LE2CB_GE3_2026/actions/workflows/main.yml/badge.svg)](https://github.com/kevTheProgrammer0106/LE2CB_GE3_2026/actions/workflows/main.yml)
+[![DevelopmentBuild](https://github.com/kevTheProgrammer0106/LE2CB_GE3_2026/actions/workflows/DevelopmentBuild.yml/badge.svg)](https://github.com/kevTheProgrammer0106/LE2CB_GE3_2026/actions/workflows/DevelopmentBuild.yml)
+[![ReleaseBuild](https://github.com/kevTheProgrammer0106/LE2CB_GE3_2026/actions/workflows/ReleaseBuild.yml/badge.svg)](https://github.com/kevTheProgrammer0106/LE2CB_GE3_2026/actions/workflows/ReleaseBuild.yml)
