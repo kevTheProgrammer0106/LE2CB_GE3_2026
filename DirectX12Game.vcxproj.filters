@@ -186,6 +186,9 @@
     <ClCompile Include="VirtualisEngine\scene\SceneCamera.cpp">
       <Filter>VirtualisEngine\scene</Filter>
     </ClCompile>
+    <ClCompile Include="D3DResourceLeakChecker.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="externals\imgui\imconfig.h">
@@ -319,6 +322,9 @@
     </ClInclude>
     <ClInclude Include="VirtualisEngine\scene\SceneCamera.h">
       <Filter>VirtualisEngine\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="D3DResourceLeakChecker.h">
+      <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
