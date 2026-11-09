@@ -58,6 +58,18 @@ public:
 		return !mouseCaptured_ && ( mouseState_.rgbButtons[button] & 0x80 ) && !( preMouseState_.rgbButtons[button] & 0x80 );
 	}
 
+	// ImGuiがマウスを使っている(UIの上にカーソルがある・ドラッグ中)ときは true。
+	// このときはクリックしてもゲーム側の物を選ばない
+	bool IsMouseCaptured() const
+	{
+		return mouseCaptured_;
+	}
+
+	// カーソルの位置を、このウィンドウのクライアント領域のピクセル座標(左上が原点)で返す。
+	// ウィンドウの外にあるとき・ウィンドウが最前面でないときは false(outは変更しない)。
+	// クリックで物を選ぶ(ピッキング)のに使う
+	bool GetCursorClientPos(Vector2& out) const;
+
 	// このウィンドウのクライアント領域の中央にカーソルを移動する(画面座標に変換して設定する)。
 	// ウィンドウが最前面でないときは何もしない
 	void CenterCursor() const;

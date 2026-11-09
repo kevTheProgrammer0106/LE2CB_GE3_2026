@@ -5,6 +5,8 @@
 #include <vector>
 
 #include "BlendModes.h"
+#include "Collider.h"
+#include "DebugDraw.h"
 #include "IScene.h"
 #include "InstancingObject.h"
 #include "LightBuffer.h"
@@ -41,6 +43,10 @@ struct SceneSelection
 	{
 		return kind == k && index == i;
 	}
+	bool operator==(const SceneSelection& other) const
+	{
+		return kind == other.kind && index == other.index;
+	}
 };
 
 /// <summary>
@@ -50,6 +56,12 @@ struct SceneSelection
 /// 「Hierarchy」と「Properties」の2つのImGuiウィンドウ(仮のオブジェクト管理UI)を持つ:
 ///   Hierarchy  : シーン内の物を一覧にする。表示の切り替え・選択・図形の追加
 ///   Properties : 選んだ物の値を編集する
+///
+/// クリック選択(Unity / Roblox 風):
+///   どの物も、まず「箱(BoxCollider)」を標準の当たり判定として持つ(既定では見た目にぴったり)。
+///   ゲーム画面で左クリックすると、カーソルからのレイが最初に当たった物が選ばれ(Hierarchyにも反映)、
+///   何もない所をクリックすると選択が外れる。カーソルが乗っている物は黄色、選択中はオレンジの枠で表示する。
+///   F4(または Game Debug のチェック)で、全コライダーの枠(緑)を常に表示する
 /// </summary>
 class GameScene : public IScene
 {
@@ -67,7 +79,8 @@ public:
 
 	/// 図形をシーンに追加する(コードからもHierarchyの「Add」ボタンからも使う)。
 	/// 名前が空なら「Box 1」のように自動で付ける。追加した図形は Hierarchy に現れる
-	ShapeObject* AddShape(ShapeType type, const std::string& name = "");
+	/// flat が true なら2D版(Box → Quad、Sphere → Circle)
+	ShapeObject* AddShape(ShapeType type, const std::string& name = "", bool flat = false);
 
 private:
 	SceneCamera camera_;
@@ -93,7 +106,7 @@ private:
 	// --- 図形 ---
 	DirectXCommon* dx_ = nullptr; // 図形を後から追加するときのGPUバッファ生成に使う
 	std::vector<std::unique_ptr<ShapeObject>> shapes_;
-	int shapeCounters_[kShapeTypeCount] = {}; // 自動で付ける名前の連番
+	int shapeCounters_[kShapeTypeCount][2] = {}; // 自動で付ける名前の連番([種類][0:3D版 1:2D版])
 
 	// --- Hierarchy / Properties ---
 	static constexpr int kModelCount = 2;
@@ -101,6 +114,28 @@ private:
 	bool modelVisible_[kModelCount] = { true, true };
 
 	SceneSelection selection_;
+	SceneSelection hover_; // カーソルが乗っている物(毎フレーム作り直す)
+
+	// --- コライダーとクリック選択 ---
+	const AssetCache* assets_ = nullptr;
+	DebugDraw debug_;
+	BoxCollider modelColliders_[kModelCount]; // モデルの標準コライダー(自動でモデルの範囲に合わせる)
+	bool showColliders_ = false;
+
+	// コライダーを持つ項目(クリック判定とデバッグ表示で共通に使う)
+	struct ColliderItem
+	{
+		SceneSelection id;
+		BoxCollider collider;
+		Matrix4x4 world;
+		bool isEmitter;
+	};
+	/// 今シーンにある、3D空間のコライダーを全部集める(非表示の物は含めない)
+	std::vector<ColliderItem> CollectColliders() const;
+	/// カーソル位置にある物を返す(何も無ければ kind = None)。スプライトは画面の手前なので最優先
+	SceneSelection PickAt(const Vector2& cursor, float clientWidth, float clientHeight) const;
+	void UpdatePicking(InputManager& input, float clientWidth, float clientHeight);
+	void BuildDebugLines();
 
 	void DrawHierarchyUi();
 	void DrawPropertiesUi();

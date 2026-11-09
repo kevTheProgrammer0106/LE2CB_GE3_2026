@@ -156,6 +156,50 @@ namespace
 	}
 
 	//----------------------------------------------------------------
+	// 四角形(2D版の箱。一辺1。XY平面)
+	//----------------------------------------------------------------
+	ShapeGeometry CreateQuad()
+	{
+		ShapeGeometry g;
+		const Vector3 normal = { 0.0f, 0.0f, -1.0f }; // カメラ(-Z側)を向く
+		const VertexData tl = MakeVertex(P(-0.5f, 0.5f, 0.0f), 0.0f, 0.0f, normal);
+		const VertexData tr = MakeVertex(P(0.5f, 0.5f, 0.0f), 1.0f, 0.0f, normal);
+		const VertexData bl = MakeVertex(P(-0.5f, -0.5f, 0.0f), 0.0f, 1.0f, normal);
+		const VertexData br = MakeVertex(P(0.5f, -0.5f, 0.0f), 1.0f, 1.0f, normal);
+		g.vertices.insert(g.vertices.end(), { tl, tr, bl, bl, tr, br });
+		g.parts.push_back({ "Face", 0, 6, { 0.0f, 0.0f, 0.0f } });
+		return g;
+	}
+
+	//----------------------------------------------------------------
+	// 円(2D版の球。直径1。XY平面。中心から扇形に三角形を並べる)
+	//----------------------------------------------------------------
+	ShapeGeometry CreateCircle(int segments)
+	{
+		ShapeGeometry g;
+		const uint32_t n = static_cast< uint32_t >( std::max(segments, ShapeFactory::kMinSegments) );
+		constexpr float kRadius = 0.5f;
+		const Vector3 normal = { 0.0f, 0.0f, -1.0f };
+		const float every = ( 2.0f * kPi ) / static_cast< float >( n );
+
+		for ( uint32_t i = 0; i < n; ++i )
+		{
+			const float a0 = every * static_cast< float >(i);
+			const float a1 = every * static_cast< float >(i + 1);
+			// UVは、円がちょうど収まる正方形に貼る
+			const VertexData center = MakeVertex(P(0.0f, 0.0f, 0.0f), 0.5f, 0.5f, normal);
+			const VertexData e0 = MakeVertex(P(std::cos(a0) * kRadius, std::sin(a0) * kRadius, 0.0f),
+				0.5f + std::cos(a0) * 0.5f, 0.5f - std::sin(a0) * 0.5f, normal);
+			const VertexData e1 = MakeVertex(P(std::cos(a1) * kRadius, std::sin(a1) * kRadius, 0.0f),
+				0.5f + std::cos(a1) * 0.5f, 0.5f - std::sin(a1) * 0.5f, normal);
+			// 反時計回りで並べる(カメラ側から見て表になる向き)
+			g.vertices.insert(g.vertices.end(), { center, e1, e0 });
+		}
+		g.parts.push_back({ "Disc", 0, static_cast< uint32_t >( g.vertices.size() ), { 0.0f, 0.0f, 0.0f } });
+		return g;
+	}
+
+	//----------------------------------------------------------------
 	// 円錐(底面の半径0.5・高さ1。頂点が+Y、底面が-Y)
 	//----------------------------------------------------------------
 	ShapeGeometry CreateCone(int segments)
@@ -218,9 +262,31 @@ namespace
 //===================================================================
 // ShapeFactory
 //===================================================================
-bool ShapeFactory::UsesSegments(ShapeType type)
+bool ShapeFactory::UsesSegments(ShapeType type, bool flat)
 {
+	( void ) flat; // 球 → 円でも分割数を使う
 	return type == ShapeType::Sphere || type == ShapeType::Cone;
+}
+
+bool ShapeFactory::HasFlatVersion(ShapeType type)
+{
+	return type == ShapeType::Box || type == ShapeType::Sphere;
+}
+
+const char* ShapeFactory::GetDisplayName(ShapeType type, bool flat)
+{
+	if ( flat )
+	{
+		if ( type == ShapeType::Box )
+		{
+			return "Quad";
+		}
+		if ( type == ShapeType::Sphere )
+		{
+			return "Circle";
+		}
+	}
+	return kShapeTypeNames[static_cast< int >( type )];
 }
 
 int ShapeFactory::DefaultSegments(ShapeType type)
@@ -233,15 +299,15 @@ int ShapeFactory::DefaultSegments(ShapeType type)
 	}
 }
 
-ShapeGeometry ShapeFactory::Create(ShapeType type, int segments)
+ShapeGeometry ShapeFactory::Create(ShapeType type, int segments, bool flat)
 {
 	segments = std::clamp(segments, kMinSegments, kMaxSegments);
 	switch ( type )
 	{
-		case ShapeType::Box: return CreateBox();
+		case ShapeType::Box: return flat ? CreateQuad() : CreateBox();
 		case ShapeType::Line: return CreateLine();
 		case ShapeType::Triangle: return CreateTriangle();
-		case ShapeType::Sphere: return CreateSphere(segments);
+		case ShapeType::Sphere: return flat ? CreateCircle(segments) : CreateSphere(segments);
 		case ShapeType::Cone: return CreateCone(segments);
 		default: break;
 	}

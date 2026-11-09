@@ -21,6 +21,11 @@
 //   Triangle : 頂点3つ(A / B / C)               … 同上
 //   Sphere   : 半球2つ(South / North)
 //   Cone     : 側面(Side)と底面(Base)
+//
+// 2D版(flat = true): XY平面に置いた平らな図形
+//   Box    → Quad(四角形。パーツは Face 1つ)
+//   Sphere → Circle(円。パーツは Disc 1つ。分割数で滑らかさが変わる)
+//   Line / Triangle は元から平ら、Cone は2D版でも変わらない(flatを渡しても同じ形)
 //===================================================================
 
 enum class ShapeType : int
@@ -65,12 +70,16 @@ public:
 	static constexpr int kMinSegments = 3;
 	static constexpr int kMaxSegments = 32;
 
-	/// 球と円錐だけ分割数を持つ
-	static bool UsesSegments(ShapeType type);
+	/// 球と円錐(と2D版の円)だけ分割数を持つ
+	static bool UsesSegments(ShapeType type, bool flat = false);
+	/// 2D版が元の形と違う図形か(Box と Sphere だけ。それ以外はflatを渡しても同じ形)
+	static bool HasFlatVersion(ShapeType type);
+	/// 表示名。2D版は Box → "Quad"、Sphere → "Circle"
+	static const char* GetDisplayName(ShapeType type, bool flat);
 	static int DefaultSegments(ShapeType type);
 
-	/// 頂点とパーツを作る(segmentsは球・円錐以外では無視される)
-	static ShapeGeometry Create(ShapeType type, int segments);
+	/// 頂点とパーツを作る(segmentsは球・円錐・円以外では無視される)
+	static ShapeGeometry Create(ShapeType type, int segments, bool flat = false);
 	/// その図形が取りうる最大の頂点数(バッファの大きさを決めるのに使う)
 	static size_t MaxVertexCount(ShapeType type);
 

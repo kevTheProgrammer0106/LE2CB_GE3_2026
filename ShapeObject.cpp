@@ -16,7 +16,7 @@ namespace
 	constexpr TransformData kIdentityTransform{ { 1.0f, 1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f, 0.0f } };
 }
 
-void ShapeObject::Initialize(DirectXCommon& dx, ShapeType type, const std::string& objectName)
+void ShapeObject::Initialize(DirectXCommon& dx, ShapeType type, const std::string& objectName, bool flat)
 {
 	type_ = type;
 	name = objectName;
@@ -53,20 +53,44 @@ void ShapeObject::Initialize(DirectXCommon& dx, ShapeType type, const std::strin
 
 void ShapeObject::RebuildGeometry()
 {
-	geometry_ = ShapeFactory::Create(type_, segments_);
+	geometry_ = ShapeFactory::Create(type_, segments_, flat_);
 	// パーツ数は変わらないが、念のため数を合わせる(増えた分は初期値)
 	partTransforms.resize(geometry_.parts.size(), kIdentityTransform);
 }
 
+void ShapeObject::SetFlat(bool flat)
+{
+	flat = flat && ShapeFactory::HasFlatVersion(type_);
+	if ( flat == flat_ )
+	{
+		return;
+	}
+	flat_ = flat;
+	RebuildGeometry();
+	// パーツの構成が変わる(箱の6面 → 四角形の1面など)ので、個別の変形は初期値に戻す
+	partTransforms.assign(geometry_.parts.size(), kIdentityTransform);
+}
+
 void ShapeObject::Update(const Matrix4x4& viewProjection)
 {
-	// パーツごとの変形を掛けた頂点をバッファへ(球でも最大6144頂点程度なので毎フレーム書き直してよい)
-	ShapeFactory::BuildVertices(geometry_, partTransforms, useIndividual, mappedVertices_);
-	vertexCount_ = static_cast< UINT >( geometry_.vertices.size() );
+	// パーツごとの変形を掛けた頂点をCPU側で作り、バッファへコピーする(球でも最大6144頂点程度なので毎フレーム書き直してよい)
+	cpuVertices_.resize(geometry_.vertices.size());
+	ShapeFactory::BuildVertices(geometry_, partTransforms, useIndividual, cpuVertices_.data());
+	std::copy(cpuVertices_.begin(), cpuVertices_.end(), mappedVertices_);
+	vertexCount_ = static_cast< UINT >( cpuVertices_.size() );
 	vbv_.SizeInBytes = vertexCount_ * sizeof(VertexData);
+
+	// コライダー: 自動のときは、変形後の頂点の範囲に合わせる。
+	// 線や板のように薄い図形でも、クリックできるよう最低限の厚みを持たせる
+	if ( collider.autoFit )
+	{
+		const float minThickness = geometry_.isLine ? 0.15f : 0.05f;
+		collider.FitToBounds(ComputeBounds(cpuVertices_.data(), cpuVertices_.size()), minThickness);
+	}
 
 	// Transform All
 	const Matrix4x4 world = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
+	world_ = world;
 	wvpData_->WVP = Multiply(world, viewProjection);
 	wvpData_->World = world;
 
@@ -86,7 +110,7 @@ void ShapeObject::Draw(ID3D12GraphicsCommandList* commandList, const PipelineMan
 
 	if ( geometry_.isLine )
 	{
-		commandList->SetPipelineState(pipelines.GetLinePso());
+		commandList->SetPipelineState(pipelines.GetLinePso(smoothLines));
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
 	} else
 	{
@@ -122,8 +146,23 @@ void ShapeObject::DrawUi()
 	{
 		name = nameBuffer;
 	}
-	ImGui::Text("Type: %s   Vertices: %d", kShapeTypeNames[static_cast< int >( type_ )], static_cast< int >( vertexCount_ ));
+	ImGui::Text("Type: %s   Vertices: %d", GetDisplayName(), static_cast< int >( vertexCount_ ));
 	ImGui::Checkbox("Visible", &visible);
+
+	// 2D版(Box → Quad、Sphere → Circle)
+	if ( ShapeFactory::HasFlatVersion(type_) )
+	{
+		bool flat = flat_;
+		if ( ImGui::Checkbox("2D version (flat)", &flat) )
+		{
+			SetFlat(flat);
+		}
+	}
+	// 線のなめらかさ(線は元から平らなので、Lineだけに出す)
+	if ( geometry_.isLine )
+	{
+		ImGui::Checkbox("Smooth Line (anti-aliased)", &smoothLines);
+	}
 
 	// --- Transform All ---
 	if ( ImGui::CollapsingHeader("Transform All (every vertex)", ImGuiTreeNodeFlags_DefaultOpen) )
@@ -136,7 +175,7 @@ void ShapeObject::DrawUi()
 			transform = kIdentityTransform;
 		}
 
-		if ( ShapeFactory::UsesSegments(type_) )
+		if ( ShapeFactory::UsesSegments(type_, flat_) )
 		{
 			int segments = segments_;
 			if ( ImGui::SliderInt("Segments", &segments, ShapeFactory::kMinSegments, ShapeFactory::kMaxSegments) )
@@ -181,6 +220,9 @@ void ShapeObject::DrawUi()
 			std::fill(partTransforms.begin(), partTransforms.end(), kIdentityTransform);
 		}
 	}
+
+	// --- Collider ---
+	collider.DrawUi();
 
 	// --- Material ---
 	if ( ImGui::CollapsingHeader("Material") )

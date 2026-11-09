@@ -65,6 +65,31 @@ bool InputManager::ReleaseKey(BYTE key) const
 	return !keyboardCaptured_ && !key_[key] && preKey_[key];
 }
 
+bool InputManager::GetCursorClientPos(Vector2& out) const
+{
+	HWND hwnd = winApp ? winApp->GetHwnd() : nullptr;
+	if ( !hwnd || GetForegroundWindow() != hwnd )
+	{
+		return false;
+	}
+
+	POINT point{};
+	if ( !GetCursorPos(&point) || !ScreenToClient(hwnd, &point) )
+	{
+		return false;
+	}
+
+	RECT clientRect{};
+	GetClientRect(hwnd, &clientRect);
+	if ( point.x < 0 || point.y < 0 || point.x >= clientRect.right || point.y >= clientRect.bottom )
+	{
+		return false; // クライアント領域の外
+	}
+
+	out = { static_cast< float >(point.x), static_cast< float >(point.y) };
+	return true;
+}
+
 void InputManager::CenterCursor() const
 {
 	HWND hwnd = winApp ? winApp->GetHwnd() : nullptr;

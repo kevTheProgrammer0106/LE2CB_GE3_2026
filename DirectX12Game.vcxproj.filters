@@ -37,17 +37,23 @@
     <Filter Include="VirtualisEngine\scene">
       <UniqueIdentifier>{f2d3a02e-27dc-4d9c-a675-aa37fa6f3b22}</UniqueIdentifier>
     </Filter>
-    <Filter Include="VirtualisEngine\mainGame">
-      <UniqueIdentifier>{0b7e3fb0-673c-4086-bf13-a5b852bbcf82}</UniqueIdentifier>
-    </Filter>
     <Filter Include="VirtualisEngine\devTools">
       <UniqueIdentifier>{4123caa7-2cf5-49a8-99fd-ce96ac044385}</UniqueIdentifier>
     </Filter>
+    <Filter Include="VirtualisEngine\misc">
+      <UniqueIdentifier>{793396b4-8ca8-49df-bfb6-3dba88d7ed32}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="VirtualisEngine\defaultGame">
+      <UniqueIdentifier>{0b7e3fb0-673c-4086-bf13-a5b852bbcf82}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resources">
+      <UniqueIdentifier>{8e23b162-a72a-4aa3-a982-f4ebd45fc994}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resources\shaders">
+      <UniqueIdentifier>{b95b142e-c7a5-4147-bdac-3f3932ccba64}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="externals\imgui\imgui.cpp">
       <Filter>imgui</Filter>
     </ClCompile>
@@ -78,9 +84,6 @@
     <ClCompile Include="SoundManager.cpp">
       <Filter>VirtualisEngine\audio</Filter>
     </ClCompile>
-    <ClCompile Include="WorldTransform.cpp">
-      <Filter>VirtualisEngine\3d</Filter>
-    </ClCompile>
     <ClCompile Include="Camera.cpp">
       <Filter>VirtualisEngine\scene</Filter>
     </ClCompile>
@@ -103,7 +106,7 @@
       <Filter>VirtualisEngine\base</Filter>
     </ClCompile>
     <ClCompile Include="GameScene.cpp">
-      <Filter>VirtualisEngine\mainGame</Filter>
+      <Filter>VirtualisEngine\defaultGame</Filter>
     </ClCompile>
     <ClCompile Include="WindowRenderer.cpp">
       <Filter>VirtualisEngine\base</Filter>
@@ -111,74 +114,104 @@
     <ClCompile Include="ParticleEditor.cpp">
       <Filter>VirtualisEngine\devTools</Filter>
     </ClCompile>
-    <ClCompile Include="Logger.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="StringUtility.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="LightBuffer.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="Sprite.cpp">
+      <Filter>VirtualisEngine\2d</Filter>
     </ClCompile>
     <ClCompile Include="RenderObject.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>VirtualisEngine\misc</Filter>
     </ClCompile>
-    <ClCompile Include="Sprite.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="InstancingObject.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="Application.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="AppWindow.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="IScene.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="SceneCamera.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="BlendModes.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="WorldTransform.cpp">
+      <Filter>VirtualisEngine\base</Filter>
     </ClCompile>
     <ClCompile Include="CrashHandler.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>VirtualisEngine\devTools</Filter>
     </ClCompile>
-    <ClCompile Include="AssetCache.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="PipelineManager.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="FrameTimer.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="DebugDraw.cpp">
+      <Filter>VirtualisEngine\devTools</Filter>
     </ClCompile>
     <ClCompile Include="ParticleConfig.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>VirtualisEngine\3d</Filter>
     </ClCompile>
     <ClCompile Include="ParticleLibrary.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>VirtualisEngine\3d</Filter>
     </ClCompile>
     <ClCompile Include="Easing.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>VirtualisEngine\misc</Filter>
+    </ClCompile>
+    <ClCompile Include="FrameTimer.cpp">
+      <Filter>VirtualisEngine\misc</Filter>
+    </ClCompile>
+    <ClCompile Include="IScene.cpp">
+      <Filter>VirtualisEngine\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneCamera.cpp">
+      <Filter>VirtualisEngine\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="Application.cpp">
+      <Filter>VirtualisEngine\base</Filter>
+    </ClCompile>
+    <ClCompile Include="AppWindow.cpp">
+      <Filter>VirtualisEngine\base</Filter>
+    </ClCompile>
+    <ClCompile Include="InstancingObject.cpp">
+      <Filter>VirtualisEngine\defaultGame</Filter>
+    </ClCompile>
+    <ClCompile Include="LightBuffer.cpp">
+      <Filter>VirtualisEngine\3d</Filter>
+    </ClCompile>
+    <ClCompile Include="Collider.cpp">
+      <Filter>VirtualisEngine\3d</Filter>
+    </ClCompile>
+    <ClCompile Include="BlendModes.cpp">
+      <Filter>VirtualisEngine\3d</Filter>
+    </ClCompile>
+    <ClCompile Include="AssetCache.cpp">
+      <Filter>VirtualisEngine\3d</Filter>
+    </ClCompile>
+    <ClCompile Include="Logger.cpp">
+      <Filter>VirtualisEngine\devTools</Filter>
+    </ClCompile>
+    <ClCompile Include="StringUtility.cpp">
+      <Filter>VirtualisEngine\devTools</Filter>
+    </ClCompile>
+    <ClCompile Include="PipelineManager.cpp">
+      <Filter>VirtualisEngine\base</Filter>
     </ClCompile>
     <ClCompile Include="ShapeGeometry.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>VirtualisEngine\base</Filter>
     </ClCompile>
     <ClCompile Include="ShapeObject.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>VirtualisEngine\base</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>VirtualisEngine\defaultGame</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Object3d.VS.hlsl" />
-    <FxCompile Include="Object3d.PS.hlsl" />
-    <FxCompile Include="Particle.PS.hlsl" />
-    <FxCompile Include="Particle.VS.hlsl" />
-    <FxCompile Include="ParticleInstance.PS.hlsl" />
-    <FxCompile Include="ParticleInstance.VS.hlsl" />
+    <FxCompile Include="DebugLine.PS.hlsl">
+      <Filter>Resources\shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="DebugLine.VS.hlsl">
+      <Filter>Resources\shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Object3d.PS.hlsl">
+      <Filter>Resources\shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Object3d.VS.hlsl">
+      <Filter>Resources\shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Particle.PS.hlsl">
+      <Filter>Resources\shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Particle.VS.hlsl">
+      <Filter>Resources\shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="ParticleInstance.PS.hlsl">
+      <Filter>Resources\shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="ParticleInstance.VS.hlsl">
+      <Filter>Resources\shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="externals\imgui\imconfig.h">
@@ -214,9 +247,6 @@
     <ClInclude Include="SoundManager.h">
       <Filter>VirtualisEngine\audio</Filter>
     </ClInclude>
-    <ClInclude Include="WorldTransform.h">
-      <Filter>VirtualisEngine\3d</Filter>
-    </ClInclude>
     <ClInclude Include="DebugCamera.h">
       <Filter>VirtualisEngine\scene</Filter>
     </ClInclude>
@@ -239,7 +269,7 @@
       <Filter>VirtualisEngine\base</Filter>
     </ClInclude>
     <ClInclude Include="GameScene.h">
-      <Filter>VirtualisEngine\mainGame</Filter>
+      <Filter>VirtualisEngine\defaultGame</Filter>
     </ClInclude>
     <ClInclude Include="WindowRenderer.h">
       <Filter>VirtualisEngine\base</Filter>
@@ -247,65 +277,74 @@
     <ClInclude Include="ParticleEditor.h">
       <Filter>VirtualisEngine\devTools</Filter>
     </ClInclude>
-    <ClInclude Include="Logger.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="StringUtility.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="LightBuffer.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="RenderObject.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="Sprite.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>VirtualisEngine\2d</Filter>
     </ClInclude>
-    <ClInclude Include="InstancingObject.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="Application.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="AppWindow.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="IScene.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="SceneCamera.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="BlendModes.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="WorldTransform.h">
+      <Filter>VirtualisEngine\base</Filter>
     </ClInclude>
     <ClInclude Include="CrashHandler.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>VirtualisEngine\devTools</Filter>
     </ClInclude>
-    <ClInclude Include="AssetCache.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="PipelineManager.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="FrameTimer.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="DebugDraw.h">
+      <Filter>VirtualisEngine\devTools</Filter>
     </ClInclude>
     <ClInclude Include="ParticleConfig.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>VirtualisEngine\3d</Filter>
     </ClInclude>
     <ClInclude Include="ParticleLibrary.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>VirtualisEngine\3d</Filter>
     </ClInclude>
     <ClInclude Include="Easing.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>VirtualisEngine\misc</Filter>
+    </ClInclude>
+    <ClInclude Include="FrameTimer.h">
+      <Filter>VirtualisEngine\misc</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderObject.h">
+      <Filter>VirtualisEngine\misc</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneCamera.h">
+      <Filter>VirtualisEngine\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="IScene.h">
+      <Filter>VirtualisEngine\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="Application.h">
+      <Filter>VirtualisEngine\base</Filter>
+    </ClInclude>
+    <ClInclude Include="AppWindow.h">
+      <Filter>VirtualisEngine\base</Filter>
+    </ClInclude>
+    <ClInclude Include="InstancingObject.h">
+      <Filter>VirtualisEngine\defaultGame</Filter>
+    </ClInclude>
+    <ClInclude Include="AssetCache.h">
+      <Filter>VirtualisEngine\3d</Filter>
+    </ClInclude>
+    <ClInclude Include="BlendModes.h">
+      <Filter>VirtualisEngine\3d</Filter>
+    </ClInclude>
+    <ClInclude Include="Collider.h">
+      <Filter>VirtualisEngine\3d</Filter>
+    </ClInclude>
+    <ClInclude Include="LightBuffer.h">
+      <Filter>VirtualisEngine\3d</Filter>
+    </ClInclude>
+    <ClInclude Include="Logger.h">
+      <Filter>VirtualisEngine\devTools</Filter>
+    </ClInclude>
+    <ClInclude Include="StringUtility.h">
+      <Filter>VirtualisEngine\devTools</Filter>
+    </ClInclude>
+    <ClInclude Include="PipelineManager.h">
+      <Filter>VirtualisEngine\base</Filter>
     </ClInclude>
     <ClInclude Include="ShapeGeometry.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>VirtualisEngine\base</Filter>
     </ClInclude>
     <ClInclude Include="ShapeObject.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>VirtualisEngine\base</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -314,8 +353,14 @@
     </Text>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Object3d.hlsli" />
-    <None Include="Particle.hlsli" />
-    <None Include="ParticleInstance.hlsli" />
+    <None Include="Object3d.hlsli">
+      <Filter>Resources\shaders</Filter>
+    </None>
+    <None Include="Particle.hlsli">
+      <Filter>Resources\shaders</Filter>
+    </None>
+    <None Include="ParticleInstance.hlsli">
+      <Filter>Resources\shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

@@ -172,6 +172,42 @@ void PipelineManager::Initialize(DirectXCommon& dx, DXGI_FORMAT rtvFormat)
 		desc.BlendState = CreateParticleBlendDesc(ParticleBlendMode::Normal);
 		HRESULT hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&line_));
 		assert(SUCCEEDED(hr));
+
+		// なめらかな線: AntialiasedLineEnable(MSAAなしの線を、縁のアルファでなじませる)。
+		// アルファブレンドが有効なこのPSOでだけ効果がある。GPU・ドライバによって効き方が違う
+		desc.RasterizerState.AntialiasedLineEnable = TRUE;
+		hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&lineSmooth_));
+		assert(SUCCEEDED(hr));
+		( void ) hr;
+	}
+
+	// デバッグ線: 頂点に色を持つ専用シェーダー。深度テストなしで、常に手前に重ねる
+	{
+		ComPtr<IDxcBlob> debugVs = dx.CompileShader(L"DebugLine.VS.hlsl", L"vs_6_0");
+		ComPtr<IDxcBlob> debugPs = dx.CompileShader(L"DebugLine.PS.hlsl", L"ps_6_0");
+		assert(debugVs && debugPs);
+
+		D3D12_INPUT_ELEMENT_DESC debugElements[2] = {};
+		debugElements[0].SemanticName = "POSITION";
+		debugElements[0].SemanticIndex = 0;
+		debugElements[0].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		debugElements[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+		debugElements[1].SemanticName = "COLOR";
+		debugElements[1].SemanticIndex = 0;
+		debugElements[1].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		debugElements[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = baseDesc;
+		desc.InputLayout = { debugElements, _countof(debugElements) };
+		desc.VS = { debugVs->GetBufferPointer(), debugVs->GetBufferSize() };
+		desc.PS = { debugPs->GetBufferPointer(), debugPs->GetBufferSize() };
+		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+		desc.RasterizerState.AntialiasedLineEnable = TRUE;
+		desc.DepthStencilState.DepthEnable = false;
+		desc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+		desc.BlendState = CreateParticleBlendDesc(ParticleBlendMode::Normal);
+		HRESULT hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&debugLine_));
+		assert(SUCCEEDED(hr));
 		( void ) hr;
 	}
 

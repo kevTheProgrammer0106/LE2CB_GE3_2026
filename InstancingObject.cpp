@@ -1,6 +1,9 @@
+#define NOMINMAX
 #include "InstancingObject.h"
 
+#include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstring>
 
 #include "DirectXCommon.h"
@@ -98,6 +101,27 @@ void InstancingObject::Draw(ID3D12GraphicsCommandList* commandList, const Pipeli
 	commandList->SetGraphicsRootDescriptorTable(4, srvGpu_);
 	commandList->IASetVertexBuffers(0, 1, &vbv_);
 	commandList->DrawInstanced(vertexCount_, kNumInstance, 0, 0);
+}
+
+AABB InstancingObject::GetWorldBounds() const
+{
+	AABB bounds;
+	for ( uint32_t i = 0; i < kNumInstance; ++i )
+	{
+		const TransformData& t = transforms_[i];
+		const float hx = std::fabs(t.scale.x); // 板ポリは -1〜1 なので、半径 = 拡大率
+		const float hy = std::fabs(t.scale.y);
+		const Vector3 lo = { t.translate.x - hx, t.translate.y - hy, t.translate.z - 0.05f };
+		const Vector3 hi = { t.translate.x + hx, t.translate.y + hy, t.translate.z + 0.05f };
+		if ( i == 0 )
+		{
+			bounds = { lo, hi };
+			continue;
+		}
+		bounds.min = { std::min(bounds.min.x, lo.x), std::min(bounds.min.y, lo.y), std::min(bounds.min.z, lo.z) };
+		bounds.max = { std::max(bounds.max.x, hi.x), std::max(bounds.max.y, hi.y), std::max(bounds.max.z, hi.z) };
+	}
+	return bounds;
 }
 
 void InstancingObject::DrawUi()

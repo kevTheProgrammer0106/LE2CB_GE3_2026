@@ -1,9 +1,12 @@
+#define NOMINMAX
 #include "GameScene.h"
 
 #include "AssetCache.h"
 #include "DirectXCommon.h"
+#include "InputManager.h"
 #include "PipelineManager.h"
 
+#include <algorithm>
 #include <iterator>
 #include <string>
 
@@ -14,6 +17,8 @@
 void GameScene::Initialize(DirectXCommon& dx, const AssetCache& assets, ParticleLibrary& library)
 {
 	dx_ = &dx;
+	assets_ = &assets;
+	debug_.Initialize(dx);
 
 	camera_.Initialize();
 	light_.Initialize(dx);
@@ -45,18 +50,19 @@ void GameScene::Initialize(DirectXCommon& dx, const AssetCache& assets, Particle
 	}
 }
 
-ShapeObject* GameScene::AddShape(ShapeType type, const std::string& name)
+ShapeObject* GameScene::AddShape(ShapeType type, const std::string& name, bool flat)
 {
 	const int typeIndex = static_cast< int >( type );
+	flat = flat && ShapeFactory::HasFlatVersion(type); // 2D版が無い図形では無視する
 
 	std::string objectName = name;
 	if ( objectName.empty() )
 	{
-		objectName = std::string(kShapeTypeNames[typeIndex]) + " " + std::to_string(++shapeCounters_[typeIndex]);
+		objectName = std::string(ShapeFactory::GetDisplayName(type, flat)) + " " + std::to_string(++shapeCounters_[typeIndex][flat ? 1 : 0]);
 	}
 
 	auto shape = std::make_unique<ShapeObject>();
-	shape->Initialize(*dx_, type, objectName);
+	shape->Initialize(*dx_, type, objectName, flat);
 	shapes_.push_back(std::move(shape));
 	return shapes_.back().get();
 }
@@ -92,6 +98,156 @@ void GameScene::Update(float deltaTime, InputManager& input, float clientWidth, 
 	{
 		emitter->Update(deltaTime); // ライブラリの更新(ホットリロード)もここで取り込む
 		emitter->BuildInstances(camera_.GetViewMatrix(), camera_.GetProjectionMatrix(), clientWidth, clientHeight);
+	}
+
+	// --- コライダー・クリック選択 ---
+	if ( input.TriggerKey(DIK_F4) )
+	{
+		showColliders_ = !showColliders_;
+	}
+	// モデルのコライダーは、今のモデルの範囲(読み込み設定の適用後)に自動で合わせる
+	for ( int i = 0; i < kModelCount; ++i )
+	{
+		if ( modelColliders_[i].autoFit )
+		{
+			const Bounds& bounds = assets_->GetModel(models_[i]->modelNode).bounds;
+			if ( bounds.valid )
+			{
+				modelColliders_[i].FitToBounds({ bounds.min, bounds.max }, 0.05f);
+			}
+		}
+	}
+	UpdatePicking(input, clientWidth, clientHeight);
+	BuildDebugLines();
+}
+
+std::vector<GameScene::ColliderItem> GameScene::CollectColliders() const
+{
+	std::vector<ColliderItem> items;
+
+	// モデル
+	for ( int i = 0; i < kModelCount; ++i )
+	{
+		if ( !modelVisible_[i] )
+		{
+			continue;
+		}
+		const TransformData& t = models_[i]->transform;
+		items.push_back({ { SceneItemKind::Model, i }, modelColliders_[i], MakeAffineMatrix(t.scale, t.rotate, t.translate), false });
+	}
+
+	// 図形
+	for ( size_t i = 0; i < shapes_.size(); ++i )
+	{
+		if ( shapes_[i]->visible )
+		{
+			items.push_back({ { SceneItemKind::Shape, static_cast< int >(i) }, shapes_[i]->collider, shapes_[i]->GetWorldMatrix(), false });
+		}
+	}
+
+	// インスタンシングのデモ(全インスタンスをまとめた箱)
+	if ( instancing_.enabled )
+	{
+		BoxCollider box;
+		box.FitToBounds(instancing_.GetWorldBounds());
+		items.push_back({ { SceneItemKind::InstancingDemo, 0 }, box, MakeIdentityMatrix(), false });
+	}
+
+	// 3Dのパーティクルエミッタ(発生範囲の箱。2Dは画面座標なので3Dのレイでは選べない)
+	for ( int i = 0; i < static_cast< int >(std::size(emitters_)); ++i )
+	{
+		const ParticleEmitter& emitter = *emitters_[i];
+		if ( !emitter.enabled || emitter.GetRenderMode() != ParticleRenderMode::Billboard3D )
+		{
+			continue;
+		}
+		const Vector3& extent = emitter.GetConfig().spawnExtent;
+		BoxCollider box;
+		box.size = { std::max(extent.x * 2.0f, 0.5f), std::max(extent.y * 2.0f, 0.5f), std::max(extent.z * 2.0f, 0.5f) };
+		items.push_back({ { SceneItemKind::Emitter, i }, box, MakeTranslateMatrix({ emitter.position.x, emitter.position.y, emitter.position.z, 0.0f }), true });
+	}
+
+	return items;
+}
+
+SceneSelection GameScene::PickAt(const Vector2& cursor, float clientWidth, float clientHeight) const
+{
+	// スプライトは画面の最前面に描かれるので、3Dより先に調べる(画面上の四角形。回転は無視)
+	if ( sprite_.enabled )
+	{
+		const float x0 = sprite_.transform.translate.x;
+		const float y0 = sprite_.transform.translate.y;
+		const float x1 = x0 + 640.0f * sprite_.transform.scale.x;
+		const float y1 = y0 + 360.0f * sprite_.transform.scale.y;
+		if ( cursor.x >= std::min(x0, x1) && cursor.x <= std::max(x0, x1) && cursor.y >= std::min(y0, y1) && cursor.y <= std::max(y0, y1) )
+		{
+			return { SceneItemKind::Sprite, 0 };
+		}
+	}
+
+	// 3D: カーソルからのレイが、いちばん近くで当たった物
+	const Ray ray = ScreenPointToRay(camera_.GetViewProjectionMatrix(), cursor.x, cursor.y, clientWidth, clientHeight);
+	SceneSelection best;
+	float bestDistance = 1e30f;
+	for ( const ColliderItem& item : CollectColliders() )
+	{
+		float distance = 0.0f;
+		if ( RayIntersectsBox(ray, item.collider, item.world, &distance) && distance < bestDistance )
+		{
+			bestDistance = distance;
+			best = item.id;
+		}
+	}
+	return best;
+}
+
+void GameScene::UpdatePicking(InputManager& input, float clientWidth, float clientHeight)
+{
+	hover_ = {};
+
+	// UIの上・右クリックでカメラを回している間は、物を選ばない
+	Vector2 cursor{};
+	if ( input.IsMouseCaptured() || input.PushMouseButton(1) || !input.GetCursorClientPos(cursor) )
+	{
+		return;
+	}
+
+	hover_ = PickAt(cursor, clientWidth, clientHeight);
+	if ( input.TriggerMouseButton(0) )
+	{
+		selection_ = hover_; // 何もない所をクリックしたら、選択が外れる
+	}
+}
+
+void GameScene::BuildDebugLines()
+{
+	debug_.Begin(camera_.GetViewProjectionMatrix());
+
+	const std::vector<ColliderItem> items = CollectColliders();
+	for ( const ColliderItem& item : items )
+	{
+		const bool selected = ( item.id == selection_ );
+		const bool hovered = ( item.id == hover_ );
+
+		if ( selected )
+		{
+			debug_.ColliderBox(item.collider, item.world, DebugDraw::Color::kSelected);
+
+			// 選択中の物のローカル軸(X赤・Y緑・Z青)。Unityの移動ギズモのように、向きが分かる
+			const Vector3 origin = { item.world.m[3][0], item.world.m[3][1], item.world.m[3][2] };
+			const Vector4* axisColors[3] = { &DebugDraw::Color::kAxisX, &DebugDraw::Color::kAxisY, &DebugDraw::Color::kAxisZ };
+			for ( int axis = 0; axis < 3; ++axis )
+			{
+				const Vector3 dir = Normalize({ item.world.m[axis][0], item.world.m[axis][1], item.world.m[axis][2] });
+				debug_.Arrow(origin, { origin.x + dir.x, origin.y + dir.y, origin.z + dir.z }, *axisColors[axis]);
+			}
+		} else if ( hovered )
+		{
+			debug_.ColliderBox(item.collider, item.world, DebugDraw::Color::kHover);
+		} else if ( showColliders_ )
+		{
+			debug_.ColliderBox(item.collider, item.world, item.isEmitter ? DebugDraw::Color::kEmitter : DebugDraw::Color::kCollider);
+		}
 	}
 }
 
@@ -130,6 +286,9 @@ void GameScene::Draw(const RenderContext& context)
 	// --- パーティクル: 3Dビルボード → 2Dスクリーン(2Dは最後に重ねる) ---
 	DrawEmitters(context, ParticleRenderMode::Billboard3D, lightAddress);
 	DrawEmitters(context, ParticleRenderMode::Screen2D, lightAddress);
+
+	// --- デバッグ線(コライダーの枠・選択の強調)。深度テストなしで一番手前に重ねる ---
+	debug_.Draw(commandList, pipelines, assets, lightAddress);
 }
 
 void GameScene::DrawEmitters(const RenderContext& context, ParticleRenderMode mode, D3D12_GPU_VIRTUAL_ADDRESS lightAddress)
@@ -145,6 +304,8 @@ void GameScene::DrawEmitters(const RenderContext& context, ParticleRenderMode mo
 
 void GameScene::Shutdown()
 {
+	debug_.Shutdown();
+
 	for ( auto& shape : shapes_ )
 	{
 		shape->Shutdown();
@@ -166,6 +327,8 @@ void GameScene::DrawUi()
 	{
 		openEditorRequested_ = true;
 	}
+	ImGui::Checkbox("Show Colliders (F4)", &showColliders_);
+	ImGui::TextDisabled("Left click: select / click empty space: deselect");
 	ImGui::Separator();
 
 	ImGui::Text("Model / Shape");
@@ -219,14 +382,29 @@ void GameScene::DrawHierarchyUi()
 	}
 	if ( ImGui::BeginPopup("AddShapePopup") )
 	{
-		for ( int i = 0; i < kShapeTypeCount; ++i )
+		// 3D版(Box / Line / Triangle / Sphere / Cone)の次に、2D版(Quad / Circle)
+		for ( int i = 0; i < kShapeTypeCount * 2; ++i )
 		{
-			if ( ImGui::MenuItem(kShapeTypeNames[i]) )
+			const ShapeType type = static_cast< ShapeType >(i % kShapeTypeCount);
+			const bool flat = ( i >= kShapeTypeCount );
+			if ( flat )
 			{
-				ShapeObject* shape = AddShape(static_cast< ShapeType >(i));
+				if ( !ShapeFactory::HasFlatVersion(type) )
+				{
+					continue; // Line / Triangle / Cone は2D版でも同じ形なので、並べない
+				}
+				if ( i == kShapeTypeCount )
+				{
+					ImGui::Separator();
+				}
+			}
+
+			if ( ImGui::MenuItem(ShapeFactory::GetDisplayName(type, flat)) )
+			{
+				ShapeObject* shape = AddShape(type, "", flat);
 				// 追加した物が重ならないよう、少しずつずらして置く
-				const int n = static_cast< int >(shapes_.size());
-				shape->transform.translate = { static_cast< float >(( n - 1 ) % 5 - 2) * 1.5f, 1.5f, 0.0f, 0.0f };
+				const int n = static_cast< int >( shapes_.size() );
+				shape->transform.translate = { static_cast< float >( ( n - 1 ) % 5 - 2 ) * 1.5f, 1.5f, 0.0f, 0.0f };
 				selection_ = { SceneItemKind::Shape, n - 1 };
 			}
 		}
@@ -247,7 +425,7 @@ void GameScene::DrawHierarchyUi()
 	ImGui::TextDisabled("Shapes");
 	for ( size_t i = 0; i < shapes_.size(); ++i )
 	{
-		const std::string label = shapes_[i]->name + "  [" + kShapeTypeNames[static_cast< int >(shapes_[i]->GetType())] + "]";
+		const std::string label = shapes_[i]->name + "  [" + shapes_[i]->GetDisplayName() + "]";
 		HierarchyRow(label.c_str(), SceneItemKind::Shape, static_cast< int >(i), &shapes_[i]->visible);
 	}
 
@@ -289,6 +467,7 @@ void GameScene::DrawPropertiesUi()
 			if ( selection_.index >= 0 && selection_.index < kModelCount )
 			{
 				models_[selection_.index]->DrawUi(selection_.index == 0 ? "Object 1" : "Object 2");
+				modelColliders_[selection_.index].DrawUi();
 			}
 			break;
 

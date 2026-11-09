@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <d3d12.h>
 
+#include "Collider.h"
 #include "ResourceObject.h"
 #include "WorldTransform.h"
 
@@ -24,6 +25,10 @@ public:
 	void Draw(ID3D12GraphicsCommandList* commandList, const PipelineManager& pipelines,
 		D3D12_GPU_DESCRIPTOR_HANDLE textureSrv, D3D12_GPU_VIRTUAL_ADDRESS lightAddress) const;
 	void DrawUi();
+
+	/// 全インスタンスをまとめた、軸に平行な範囲(ワールド座標)。標準の箱コライダーとして使う。
+	/// 回転は無視して、板ポリ(-1〜1)の拡大・平行移動だけで見積もる
+	AABB GetWorldBounds() const;
 
 	bool enabled = true;
 
