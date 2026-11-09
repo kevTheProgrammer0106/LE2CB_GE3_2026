@@ -9,17 +9,12 @@ env:
   # リポジトリのルートディレクトリを基点としたソリューションファイルのパス
   SOLUTION_FILE_PATH: DirectX12Game.slnx
 
+  # Visual Studio の構成(Debug / Release)
+  CONFIGURATION: Debug
+
 jobs:
   build:
     runs-on: windows-2025
-
-    strategy:
-      fail-fast: false
-      matrix:
-        configuration:
-          - Debug
-          - Development
-          - Release
 
     steps:
       - name: Checkout
@@ -30,6 +25,6 @@ jobs:
         with:
           msbuild-architecture: x64
 
-      - name: Build (${{ matrix.configuration }})
+      - name: Build
         run: |
-          msbuild "${{ env.SOLUTION_FILE_PATH }}" /m /p:Platform=x64 /p:Configuration=${{ matrix.configuration }}
+          msbuild "${{ env.SOLUTION_FILE_PATH }}" /m /p:Platform=x64 /p:Configuration=${{ env.CONFIGURATION }}
