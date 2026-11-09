@@ -74,9 +74,8 @@ void DebugCamera::UpdateFreeRoam(InputManager& input)
 	}
 	if ( isCursorLocked_ )
 	{
-		//後でカーソルを固定機能修正
-		SetCursorPos(640, 360);
-		//SetPhysicalCursorPos(640, 360);
+		// このカメラを操作しているウィンドウのクライアント中央へ(固定の画面座標は使わない)
+		input.CenterCursor();
 	}
 } //11
 
