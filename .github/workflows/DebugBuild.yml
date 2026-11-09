@@ -7,7 +7,7 @@ on:
 
 env:
   # リポジトリのルートディレクトリを基点としたソリューションファイルのパス
-  SOLUTION_FILE_PATH: LE2CB_GE3_2026/DirectX12Game.slnx
+  SOLUTION_FILE_PATH: DirectX12Game.slnx
 
   # Visual Studio の構成(Debug / Release)
   CONFIGURATION: Debug
