@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "BlendModes.h"
+#include "Camera.h"
 #include "Collider.h"
 #include "DebugDraw.h"
 #include "IScene.h"
@@ -12,7 +13,6 @@
 #include "LightBuffer.h"
 #include "Particle.h"
 #include "RenderObject.h"
-#include "SceneCamera.h"
 #include "ShapeObject.h"
 #include "Sprite.h"
 
@@ -81,9 +81,12 @@ public:
 	/// 名前が空なら「Box 1」のように自動で付ける。追加した図形は Hierarchy に現れる
 	/// flat が true なら2D版(Box → Quad、Sphere → Circle)
 	ShapeObject* AddShape(ShapeType type, const std::string& name = "", bool flat = false);
+	/// 実行中にエミッタを追加する(3D: ワールド原点 / 2D: 画面の中央)。名前でライブラリに登録され、ParticleEditorの一覧にも出る。
+	/// 追加したエミッタはシーンが終わるまで残る(ライブラリの登録とSRVスロットを使うため、個別の削除は無い。Enabledで止められる)
+	ParticleEmitter* AddEmitter(ParticleRenderMode mode, const std::string& name = "");
 
 private:
-	SceneCamera camera_;
+	Camera camera_;
 	LightBuffer light_;
 
 	RenderObject object1_;
@@ -98,7 +101,15 @@ private:
 	// 名前でライブラリに登録され、ParticleEditorの一覧に出る(値の編集・Apply・保存はエディタ側)
 	ParticleEmitter fire_;      // 3Dビルボード(ワールドに置く炎)
 	ParticleEmitter sparkle_;   // 2Dスクリーン(画面にピクセル座標で重ねる火花)
-	ParticleEmitter* emitters_[2] = { &fire_, &sparkle_ }; // 更新・描画のループ用
+	ParticleEmitter fireEnd_;   // 炎の「終点」用(位置と広がりを持つ目印。自分では粒を出さない設定)
+	std::vector<ParticleEmitter*> emitters_; // 更新・描画のループ用(上の3つ + 実行中に追加した物。Initialize で作る)
+
+	// Hierarchyの「+ Add」で実行中に追加したエミッタ(ここが所有する。ポインタは動かないので終点に指定しても安全)
+	std::vector<std::unique_ptr<ParticleEmitter>> addedEmitters_;
+	int emitterCounters_[2] = {};          // 自動で付ける名前の連番([0:3D 1:2D])
+	ParticleLibrary* library_ = nullptr;
+	float clientWidth_ = 1280.0f;          // 2Dエミッタを画面中央に置くために、直近のクライアントサイズを覚えておく
+	float clientHeight_ = 720.0f;
 
 	/// 指定した描画方式のエミッタだけ描く(3D → 2D の順で呼ぶ)
 	void DrawEmitters(const RenderContext& context, ParticleRenderMode mode, D3D12_GPU_VIRTUAL_ADDRESS lightAddress);

@@ -302,8 +302,7 @@ void WindowRenderer::PreDraw()
 	commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], FALSE, &dsvHandle);
 
 	// 指定した色・深度で画面全体をクリアする
-	const float clearColor[] = { 0.1f, 0.25f, 0.5f, 1.0f }; // 青っぽい色。RGBAの順
-	commandList->ClearRenderTargetView(rtvHandles[backBufferIndex], clearColor, 0, nullptr);
+	commandList->ClearRenderTargetView(rtvHandles[backBufferIndex], clearColor_, 0, nullptr); // 色は SetClearColor で決める
 	commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 	// ビューポート / シザー / SRVヒープ
@@ -343,7 +342,7 @@ void WindowRenderer::PostDraw()
 
 	// このフレームのGPU処理が終わるまで待つ
 	WaitForGpu();
-	
+
 	// 次のフレーム用のコマンドリストを準備
 	hr = commandAllocator->Reset();
 	assert(SUCCEEDED(hr));

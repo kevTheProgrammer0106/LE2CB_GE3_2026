@@ -18,9 +18,14 @@ void GameScene::Initialize(DirectXCommon& dx, const AssetCache& assets, Particle
 {
 	dx_ = &dx;
 	assets_ = &assets;
+	library_ = &library;
+	emitters_ = { &fire_, &sparkle_, &fireEnd_ };
 	debug_.Initialize(dx);
 
-	camera_.Initialize();
+	// カメラの設定はウィンドウ(ビュー)ごとに変えられる。ここを書き換えるだけでゲーム側のカメラが変わる
+	CameraSettings cameraSettings;
+	cameraSettings.pose.translation = { 0.0f, 0.0f, -10.0f };
+	camera_.Initialize(cameraSettings);
 	light_.Initialize(dx);
 
 	object1_.Initialize(dx, ModelNode::Sphere);
@@ -34,6 +39,17 @@ void GameScene::Initialize(DirectXCommon& dx, const AssetCache& assets, Particle
 	// パーティクル: 名前 + 初期設定。resources/particles/名前.particle があればそちらが優先される
 	fire_.Initialize(dx, library, "Fire", ParticleConfig::MakeFire());
 	fire_.position = { 0.0f, -2.0f, 10.0f };
+
+	// 終点エミッタの例: Fireの上方に置き、広がり(spawnExtent)を大きくする。
+	// 使うときは Hierarchy で Fire を選び、Properties の「End Point」で FireEnd を選ぶ(コードなら fire_.SetEndEmitter(&fireEnd_))。
+	// 何も選ばない間は今までと同じ動き
+	{
+		ParticleConfig endConfig = ParticleConfig::MakeFire();
+		endConfig.looping = false;                     // 目印なので自分では粒を出さない
+		endConfig.spawnExtent = { 4.0f, 1.0f, 4.0f };  // 終点では広がる
+		fireEnd_.Initialize(dx, library, "FireEnd", endConfig);
+		fireEnd_.position = { 0.0f, 4.0f, 10.0f };
+	}
 
 	sparkle_.Initialize(dx, library, "Sparkle2D", ParticleConfig::MakeSparkle2D());
 	sparkle_.position = { 1000.0f, 600.0f, 0.0f }; // 2Dはピクセル座標(左上が原点)
@@ -67,6 +83,30 @@ ShapeObject* GameScene::AddShape(ShapeType type, const std::string& name, bool f
 	return shapes_.back().get();
 }
 
+ParticleEmitter* GameScene::AddEmitter(ParticleRenderMode mode, const std::string& name)
+{
+	const bool is2D = ( mode == ParticleRenderMode::Screen2D );
+
+	// ライブラリ上の名前は一意でなければならない(同じ名前だと同じ設定を共有してしまう)
+	std::string emitterName = name;
+	if ( emitterName.empty() )
+	{
+		do
+		{
+			emitterName = std::string(is2D ? "Particle2D_" : "Particle3D_") + std::to_string(++emitterCounters_[is2D ? 1 : 0]);
+		} while ( library_->Find(emitterName) != nullptr );
+	}
+
+	auto emitter = std::make_unique<ParticleEmitter>();
+	emitter->Initialize(*dx_, *library_, emitterName, is2D ? ParticleConfig::MakeSparkle2D() : ParticleConfig::MakeDefault());
+	// 追加した物は必ず原点に置く。3Dはワールド原点、2Dはピクセル座標の原点が画面の左上隅で見えにくいので画面の中央にする
+	emitter->position = is2D ? Vector3{ clientWidth_ * 0.5f, clientHeight_ * 0.5f, 0.0f } : Vector3{ 0.0f, 0.0f, 0.0f };
+
+	addedEmitters_.push_back(std::move(emitter));
+	emitters_.push_back(addedEmitters_.back().get());
+	return addedEmitters_.back().get();
+}
+
 void GameScene::DeleteShape(int index)
 {
 	if ( index < 0 || index >= static_cast< int >(shapes_.size()) )
@@ -81,7 +121,10 @@ void GameScene::DeleteShape(int index)
 
 void GameScene::Update(float deltaTime, InputManager& input, float clientWidth, float clientHeight)
 {
-	camera_.Update(input);
+	clientWidth_ = clientWidth;
+	clientHeight_ = clientHeight;
+
+	camera_.Update(input, clientWidth, clientHeight, deltaTime);
 
 	const Matrix4x4& viewProjection = camera_.GetViewProjectionMatrix();
 	object1_.Update(viewProjection);
@@ -249,6 +292,21 @@ void GameScene::BuildDebugLines()
 			debug_.ColliderBox(item.collider, item.world, item.isEmitter ? DebugDraw::Color::kEmitter : DebugDraw::Color::kCollider);
 		}
 	}
+
+	// 終点エミッタを持つ3Dエミッタは、始点 → 終点の矢印を出す(選択中か、コライダー表示がオンのとき)
+	for ( int i = 0; i < static_cast< int >(std::size(emitters_)); ++i )
+	{
+		const ParticleEmitter& emitter = *emitters_[i];
+		if ( !emitter.enabled || !emitter.HasActiveEndPoint() || emitter.GetRenderMode() != ParticleRenderMode::Billboard3D )
+		{
+			continue;
+		}
+		const bool selected = ( selection_.kind == SceneItemKind::Emitter && selection_.index == i );
+		if ( selected || showColliders_ )
+		{
+			debug_.Arrow(emitter.position, emitter.GetEndEmitter()->position, DebugDraw::Color::kEmitter);
+		}
+	}
 }
 
 void GameScene::Draw(const RenderContext& context)
@@ -402,11 +460,23 @@ void GameScene::DrawHierarchyUi()
 			if ( ImGui::MenuItem(ShapeFactory::GetDisplayName(type, flat)) )
 			{
 				ShapeObject* shape = AddShape(type, "", flat);
-				// 追加した物が重ならないよう、少しずつずらして置く
-				const int n = static_cast< int >( shapes_.size() );
-				shape->transform.translate = { static_cast< float >( ( n - 1 ) % 5 - 2 ) * 1.5f, 1.5f, 0.0f, 0.0f };
-				selection_ = { SceneItemKind::Shape, n - 1 };
+				// 追加した物は必ず原点に置く(重なる場合は Properties で動かす)
+				shape->transform.translate = { 0.0f, 0.0f, 0.0f, 0.0f };
+				selection_ = { SceneItemKind::Shape, static_cast< int >( shapes_.size() ) - 1 };
 			}
+		}
+
+		// パーティクル(3D / 2D)
+		ImGui::Separator();
+		if ( ImGui::MenuItem("Particle 3D") )
+		{
+			AddEmitter(ParticleRenderMode::Billboard3D);
+			selection_ = { SceneItemKind::Emitter, static_cast< int >( emitters_.size() ) - 1 };
+		}
+		if ( ImGui::MenuItem("Particle 2D") )
+		{
+			AddEmitter(ParticleRenderMode::Screen2D);
+			selection_ = { SceneItemKind::Emitter, static_cast< int >( emitters_.size() ) - 1 };
 		}
 		ImGui::EndPopup();
 	}
@@ -494,7 +564,31 @@ void GameScene::DrawPropertiesUi()
 		case SceneItemKind::Emitter:
 			if ( selection_.index >= 0 && selection_.index < static_cast< int >(std::size(emitters_)) )
 			{
-				emitters_[selection_.index]->DrawUi();
+				ParticleEmitter* selected = emitters_[selection_.index];
+				selected->DrawUi();
+
+				// 終点エミッタの選択(同じ描画方式の、自分以外のエミッタ)
+				const ParticleEmitter* currentEnd = selected->GetEndEmitter();
+				const char* currentName = currentEnd ? currentEnd->GetName().c_str() : "(none)";
+				if ( ImGui::BeginCombo("End Point", currentName) )
+				{
+					if ( ImGui::Selectable("(none)", currentEnd == nullptr) )
+					{
+						selected->ClearEndEmitter();
+					}
+					for ( ParticleEmitter* candidate : emitters_ )
+					{
+						if ( candidate == selected || candidate->GetRenderMode() != selected->GetRenderMode() )
+						{
+							continue;
+						}
+						if ( ImGui::Selectable(candidate->GetName().c_str(), candidate == currentEnd) )
+						{
+							selected->SetEndEmitter(candidate);
+						}
+					}
+					ImGui::EndCombo();
+				}
 			}
 			break;
 

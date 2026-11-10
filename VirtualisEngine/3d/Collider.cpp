@@ -1,4 +1,3 @@
-#define NOMINMAX
 #include "Collider.h"
 
 #include <algorithm>
@@ -10,16 +9,6 @@
 
 namespace
 {
-	float Dot(const Vector3& a, const Vector3& b)
-	{
-		return a.x * b.x + a.y * b.y + a.z * b.z;
-	}
-
-	Vector3 Sub(const Vector3& a, const Vector3& b)
-	{
-		return { a.x - b.x, a.y - b.y, a.z - b.z };
-	}
-
 	// 行列の第i行(行ベクトル規約では、ローカルのi軸がワールドでどちらを向き・どれだけ伸びるか)
 	Vector3 Row(const Matrix4x4& m, int i)
 	{
@@ -38,9 +27,9 @@ void BoxCollider::FitToBounds(const AABB& localBounds, float minThickness)
 		( localBounds.min.z + localBounds.max.z ) * 0.5f,
 	};
 	size = {
-		std::max(localBounds.max.x - localBounds.min.x, minThickness),
-		std::max(localBounds.max.y - localBounds.min.y, minThickness),
-		std::max(localBounds.max.z - localBounds.min.z, minThickness),
+		( std::max ) ( localBounds.max.x - localBounds.min.x, minThickness ),
+		( std::max ) ( localBounds.max.y - localBounds.min.y, minThickness ),
+		( std::max ) ( localBounds.max.z - localBounds.min.z, minThickness ),
 	};
 }
 
@@ -54,13 +43,13 @@ void BoxCollider::DrawUi()
 		ImGui::Checkbox("Auto Fit (match mesh)", &autoFit);
 		if ( autoFit )
 		{
-			// 自動のときは値を読むだけ(ImGuiのバージョンに依らないよう、無効化ではなく文字で表示する)
-			ImGui::Text("Center: %.2f, %.2f, %.2f", center.x, center.y, center.z);
-			ImGui::Text("Size:   %.2f, %.2f, %.2f", size.x, size.y, size.z);
-		} else
+			ImGui::BeginDisabled();
+		}
+		ImGui::DragFloat3("Center", &center.x, 0.02f);
+		ImGui::DragFloat3("Size", &size.x, 0.02f, 0.0f, 1000.0f);
+		if ( autoFit )
 		{
-			ImGui::DragFloat3("Center", &center.x, 0.02f);
-			ImGui::DragFloat3("Size", &size.x, 0.02f, 0.0f, 1000.0f);
+			ImGui::EndDisabled();
 		}
 		ImGui::PopID();
 	}
@@ -82,12 +71,12 @@ AABB ComputeBounds(const VertexData* vertices, size_t count)
 	for ( size_t i = 1; i < count; ++i )
 	{
 		const Vector4& p = vertices[i].position;
-		bounds.min.x = std::min(bounds.min.x, p.x);
-		bounds.min.y = std::min(bounds.min.y, p.y);
-		bounds.min.z = std::min(bounds.min.z, p.z);
-		bounds.max.x = std::max(bounds.max.x, p.x);
-		bounds.max.y = std::max(bounds.max.y, p.y);
-		bounds.max.z = std::max(bounds.max.z, p.z);
+		bounds.min.x = ( std::min ) ( bounds.min.x, p.x );
+		bounds.min.y = ( std::min ) ( bounds.min.y, p.y );
+		bounds.min.z = ( std::min ) ( bounds.min.z, p.z );
+		bounds.max.x = ( std::max ) ( bounds.max.x, p.x );
+		bounds.max.y = ( std::max ) ( bounds.max.y, p.y );
+		bounds.max.z = ( std::max ) ( bounds.max.z, p.z );
 	}
 	return bounds;
 }
@@ -100,12 +89,12 @@ Ray ScreenPointToRay(const Matrix4x4& viewProjection, float pixelX, float pixelY
 
 	// viewProjectionの逆行列で、近い面(z=0)と遠い面(z=1)の点をワールドに戻す(DirectXの深度は0〜1)
 	const Matrix4x4 inverse = Inverse(viewProjection);
-	const Vector4 nearPoint = Transform({ ndcX, ndcY, 0.0f, 1.0f }, inverse);
-	const Vector4 farPoint = Transform({ ndcX, ndcY, 1.0f, 1.0f }, inverse);
+	const Vector3 nearPoint = Transform(Vector3{ ndcX, ndcY, 0.0f }, inverse);
+	const Vector3 farPoint = Transform(Vector3{ ndcX, ndcY, 1.0f }, inverse);
 
 	Ray ray;
-	ray.origin = { nearPoint.x, nearPoint.y, nearPoint.z };
-	ray.direction = Normalize({ farPoint.x - nearPoint.x, farPoint.y - nearPoint.y, farPoint.z - nearPoint.z });
+	ray.origin = nearPoint;
+	ray.direction = Normalize(farPoint - nearPoint);
 	return ray;
 }
 
@@ -119,7 +108,7 @@ bool RayIntersectsBox(const Ray& ray, const BoxCollider& box, const Matrix4x4& w
 	// ローカルの各軸のワールドでの向き(長さ = 拡大率)と、原点
 	const Vector3 axes[3] = { Row(world, 0), Row(world, 1), Row(world, 2) };
 	const Vector3 origin = Row(world, 3);
-	const Vector3 toOrigin = Sub(ray.origin, origin);
+	const Vector3 toOrigin = Subtract(ray.origin, origin);
 
 	const float localCenter[3] = { box.center.x, box.center.y, box.center.z };
 	const float localHalf[3] = { box.size.x * 0.5f, box.size.y * 0.5f, box.size.z * 0.5f };
@@ -157,8 +146,8 @@ bool RayIntersectsBox(const Ray& ray, const BoxCollider& box, const Matrix4x4& w
 		{
 			std::swap(t1, t2);
 		}
-		tMin = std::max(tMin, t1);
-		tMax = std::min(tMax, t2);
+		tMin = ( std::max ) ( tMin, t1 );
+		tMax = ( std::min ) ( tMax, t2 );
 		if ( tMin > tMax )
 		{
 			return false;
@@ -199,12 +188,12 @@ AABB GetWorldAABB(const BoxCollider& box, const Matrix4x4& world)
 	bounds.max = corners[0];
 	for ( int i = 1; i < 8; ++i )
 	{
-		bounds.min.x = std::min(bounds.min.x, corners[i].x);
-		bounds.min.y = std::min(bounds.min.y, corners[i].y);
-		bounds.min.z = std::min(bounds.min.z, corners[i].z);
-		bounds.max.x = std::max(bounds.max.x, corners[i].x);
-		bounds.max.y = std::max(bounds.max.y, corners[i].y);
-		bounds.max.z = std::max(bounds.max.z, corners[i].z);
+		bounds.min.x = ( std::min ) ( bounds.min.x, corners[i].x );
+		bounds.min.y = ( std::min ) ( bounds.min.y, corners[i].y );
+		bounds.min.z = ( std::min ) ( bounds.min.z, corners[i].z );
+		bounds.max.x = ( std::max ) ( bounds.max.x, corners[i].x );
+		bounds.max.y = ( std::max ) ( bounds.max.y, corners[i].y );
+		bounds.max.z = ( std::max ) ( bounds.max.z, corners[i].z );
 	}
 	return bounds;
 }

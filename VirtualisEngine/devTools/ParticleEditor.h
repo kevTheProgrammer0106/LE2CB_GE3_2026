@@ -2,12 +2,13 @@
 
 #include <string>
 
+#include "Camera.h"
+#include "DebugDraw.h"
 #include "IScene.h"
 #include "LightBuffer.h"
 #include "Particle.h"
 #include "ParticleConfig.h"
 #include "ParticleLibrary.h"
-#include "SceneCamera.h"
 
 class DirectXCommon;
 
@@ -46,10 +47,17 @@ private:
 
 	ParticleLibrary* library_ = nullptr;
 
-	SceneCamera camera_;
+	Camera camera_;
 	// ルートパラメータ[3]を未設定のまま描かないために持つ(パーティクルのシェーダーは参照しない)
 	LightBuffer light_;
 	ParticleEmitter preview_; // プレビュー専用(ライブラリとは繋がらない)
+
+	// 床のグリッド(エディタ専用のDebugDraw。パーティクルより先に描いて、粒が線の上に重なるようにする)
+	DebugDraw grid_;
+	bool showGrid_ = true;
+	float gridHalfWidth_ = 10.0f;
+	int gridSubdivision_ = 20;      // 半幅10・分割20 → 1マス1.0
+	float gridHeight_ = 0.0f;       // グリッドのY位置(0 = ワールド原点を通る平面)
 
 	int selected_ = -1;
 	ParticleConfig working_;          // 編集中の値
@@ -57,6 +65,6 @@ private:
 	bool dirty_ = false;              // Apply・保存していない変更がある
 	bool autoApply_ = false;
 	bool paused_ = false;
-	Vector3 preview3dPosition_{ 0.0f, -2.0f, 10.0f };
+	Vector3 preview3dPosition_{ 0.0f, 0.0f, 0.0f }; // 原点(グリッドの中心と同じ場所)
 	std::string status_;              // 「Applied」などの結果表示
 };

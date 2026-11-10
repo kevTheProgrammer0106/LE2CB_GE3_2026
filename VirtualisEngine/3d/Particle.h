@@ -9,6 +9,7 @@
 
 #include "ParticleConfig.h"
 #include "ParticleLibrary.h"
+#include "ParticleSim.h"
 #include "ResourceObject.h"
 #include "WorldTransform.h"
 
@@ -48,6 +49,36 @@ struct Particle
 	Vector4 colorStart{ 1.0f, 1.0f, 1.0f, 1.0f };
 	Vector4 colorEnd{ 1.0f, 1.0f, 1.0f, 0.0f };
 	ParticleCurve colorCurve = ParticleCurve::Linear;
+
+	// 追加パラメータのスナップショット
+	bool localSpace = false;     // true: position / velocity はエミッタからの相対(描くときにエミッタ位置を足す)
+	float radialAccel = 0.0f;
+	float orbitSpeed = 0.0f;     // ラジアン/秒
+	float turbulence = 0.0f;
+	float turbulenceFreq = 1.0f;
+	float turbulenceSpeed = 0.5f;
+	float seed = 0.0f;           // 乱流の位相(粒ごとに違う)
+	bool groundCollision = false;
+	float groundHeight = 0.0f;
+	float bounciness = 0.5f;
+	float bounceLifeLoss = 0.0f;
+	bool useColorMid = false;
+	Vector4 colorMid{ 1.0f, 1.0f, 1.0f, 1.0f };
+	float colorMidTime = 0.5f;
+	float fadeIn = 0.0f;
+	bool alignToVelocity = false;
+	float stretchScale = 0.0f;
+	float stretchMax = 4.0f;
+
+	// 終点エミッタを使うときだけ有効(発生時のスナップショット)。
+	// followPath が true の粒は、速度ではなく「始点 → 終点」の道のりで位置が決まる
+	bool followPath = false;
+	Vector3 pathStart{};
+	Vector3 pathEnd{};
+	Vector3 offsetUnit{};        // 各軸 -1〜1 の乱数。実際のずれ = offsetUnit × その時点の広がり
+	Vector3 startExtent{};       // 始点側の広がり(集中)
+	Vector3 endExtent{};         // 終点側の広がり(拡散)
+	ParticleCurve pathCurve = ParticleCurve::Linear;
 };
 
 /// <summary>
@@ -82,7 +113,7 @@ public:
 
 	/// 今すぐ count 個発生させる(バースト)
 	void Emit(int count);
-	/// 全部消す
+	/// 全部消し、発生のタイミング(startDelay・バースト回数)も最初からにする
 	void Clear();
 	/// 単体用: 設定を直接差し替える(次の発生から反映)
 	void SetConfig(const ParticleConfig& config);
@@ -109,6 +140,29 @@ public:
 		return config_.renderMode;
 	}
 
+	//----------------------------------------------------------------
+	// 終点エミッタ(任意)
+	//   セットすると、このエミッタの粒は「このエミッタの位置 → 終点エミッタの位置」へ向かって進み、
+	//   発生した直後は spawnExtent(集中)、終点に着くころは終点エミッタの spawnExtent(拡散)へ広がる。
+	//   それ以外の値(寿命・サイズ・色・回転・発生数など)は、このエミッタの設定をそのまま使う。
+	//   セットしなければ(nullptr)今までと完全に同じ動き。
+	//   ・終点エミッタは「位置と広がりを持つ目印」。発生は終点側では行わない(自分の looping が true なら自分の粒は出る)
+	//   ・描画方式(3D/2D)が違う終点は無視される
+	//   ・飛んでいる粒は発生時の始点・終点を覚えているので、あとからエミッタを動かしても既存の粒の道は変わらない
+	//   ・終点は設定ファイル(.particle)には保存されない(ゲーム側のコードで繋ぐ)
+	//----------------------------------------------------------------
+	void SetEndEmitter(const ParticleEmitter* endEmitter);
+	void ClearEndEmitter();
+	const ParticleEmitter* GetEndEmitter() const
+	{
+		return endEmitter_;
+	}
+	/// 終点が有効か(セット済み・自分自身でない・描画方式が同じ)
+	bool HasActiveEndPoint() const;
+
+	/// 終点までの進み方(Linear: 等速 / EaseInOut: 出だしと着地がゆっくり)。広がり方も同じカーブに従う
+	ParticleCurve endTravelCurve = ParticleCurve::Linear;
+
 	void DrawUi();
 	void Shutdown();
 
@@ -125,9 +179,15 @@ private:
 	ParticleConfig config_;
 	std::vector<Particle> particles_;
 	float emitAccumulator_ = 0.0f; // 発生数の端数を持ち越す
+	ParticleSim::Scheduler scheduler_; // startDelay・バースト
+	Vector3 lastPosition_{};           // エミッタの移動速度(inheritVelocity)を求めるための前フレームの位置
+	Vector3 emitterVelocity_{};
+	bool hasLastPosition_ = false;
 	std::mt19937 rng_;
 
 	// ライブラリとの連携
+	const ParticleEmitter* endEmitter_ = nullptr;
+
 	ParticleLibrary* library_ = nullptr;
 	ParticleLibrary::Entry* entry_ = nullptr;
 	uint32_t syncedRevision_ = 0;

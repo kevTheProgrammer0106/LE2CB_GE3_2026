@@ -7,11 +7,12 @@
 #endif
 
 void AppWindow::Initialize(HINSTANCE instance, DirectXCommon& dx, const wchar_t* title,
-	uint32_t width, uint32_t height, WindowCloseBehavior closeBehavior, bool vsync)
+	uint32_t width, uint32_t height, WindowCloseBehavior closeBehavior, bool vsync, const Vector4& clearColor)
 {
 	winApp_.Initialize(instance, title, width, height, closeBehavior);
 	renderer_.Initialize(&winApp_, &dx);
 	renderer_.SetVSync(vsync);
+	renderer_.SetClearColor(clearColor);
 	input_.Initialize(&winApp_);
 }
 

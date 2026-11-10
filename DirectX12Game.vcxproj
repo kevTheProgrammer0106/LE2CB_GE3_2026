@@ -179,6 +179,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
+    <ClCompile Include="ParticleSim.cpp" />
     <ClCompile Include="VirtualisEngine\2d\Sprite.cpp" />
     <ClCompile Include="VirtualisEngine\3d\AssetCache.cpp" />
     <ClCompile Include="VirtualisEngine\3d\BlendModes.cpp" />
@@ -210,9 +211,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="VirtualisEngine\misc\FrameTimer.cpp" />
     <ClCompile Include="VirtualisEngine\misc\RenderObject.cpp" />
     <ClCompile Include="VirtualisEngine\scene\Camera.cpp" />
-    <ClCompile Include="VirtualisEngine\scene\DebugCamera.cpp" />
     <ClCompile Include="VirtualisEngine\scene\IScene.cpp" />
-    <ClCompile Include="VirtualisEngine\scene\SceneCamera.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="externals\imgui\imconfig.h" />
@@ -225,6 +224,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="externals\imgui\imstb_truetype.h" />
     <ClInclude Include="GameScene.h" />
     <ClInclude Include="InstancingObject.h" />
+    <ClInclude Include="ParticleSim.h" />
     <ClInclude Include="VirtualisEngine\2d\Sprite.h" />
     <ClInclude Include="VirtualisEngine\3d\AssetCache.h" />
     <ClInclude Include="VirtualisEngine\3d\BlendModes.h" />
@@ -256,9 +256,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="VirtualisEngine\misc\FrameTimer.h" />
     <ClInclude Include="VirtualisEngine\misc\RenderObject.h" />
     <ClInclude Include="VirtualisEngine\scene\Camera.h" />
-    <ClInclude Include="VirtualisEngine\scene\DebugCamera.h" />
     <ClInclude Include="VirtualisEngine\scene\IScene.h" />
-    <ClInclude Include="VirtualisEngine\scene\SceneCamera.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt" />

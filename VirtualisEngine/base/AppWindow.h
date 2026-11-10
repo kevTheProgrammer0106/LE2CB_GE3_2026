@@ -14,7 +14,11 @@ class AppWindow
 {
 public:
 	void Initialize(HINSTANCE instance, DirectXCommon& dx, const wchar_t* title,
-		uint32_t width, uint32_t height, WindowCloseBehavior closeBehavior, bool vsync);
+		uint32_t width, uint32_t height, WindowCloseBehavior closeBehavior, bool vsync,
+		const Vector4& clearColor = kDefaultClearColor);
+
+	/// 背景色の既定(青っぽい色)
+	static constexpr Vector4 kDefaultClearColor{ 0.1f, 0.25f, 0.5f, 1.0f };
 
 	/// フレーム先頭で呼ぶ。入力を更新し、保留中のリサイズを適用する。
 	/// false が返ったら(最小化中・非表示中)このフレームの更新・描画はスキップする

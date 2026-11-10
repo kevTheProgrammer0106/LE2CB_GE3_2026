@@ -177,14 +177,11 @@
     <ClCompile Include="VirtualisEngine\scene\Camera.cpp">
       <Filter>VirtualisEngine\scene</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\scene\DebugCamera.cpp">
-      <Filter>VirtualisEngine\scene</Filter>
-    </ClCompile>
     <ClCompile Include="VirtualisEngine\scene\IScene.cpp">
       <Filter>VirtualisEngine\scene</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\scene\SceneCamera.cpp">
-      <Filter>VirtualisEngine\scene</Filter>
+    <ClCompile Include="ParticleSim.cpp">
+      <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -311,14 +308,11 @@
     <ClInclude Include="VirtualisEngine\scene\Camera.h">
       <Filter>VirtualisEngine\scene</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\scene\DebugCamera.h">
-      <Filter>VirtualisEngine\scene</Filter>
-    </ClInclude>
     <ClInclude Include="VirtualisEngine\scene\IScene.h">
       <Filter>VirtualisEngine\scene</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\scene\SceneCamera.h">
-      <Filter>VirtualisEngine\scene</Filter>
+    <ClInclude Include="ParticleSim.h">
+      <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

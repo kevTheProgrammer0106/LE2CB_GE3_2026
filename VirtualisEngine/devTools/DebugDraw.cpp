@@ -1,4 +1,3 @@
-#define NOMINMAX
 #include "DebugDraw.h"
 
 #include <algorithm>
@@ -102,7 +101,7 @@ void DebugDraw::ColliderBox(const BoxCollider& collider, const Matrix4x4& world,
 
 void DebugDraw::Circle(const Vector3& center, float radius, const Vector4& color, int segments)
 {
-	segments = std::max(segments, 3);
+	segments = ( std::max ) ( segments, 3 );
 	const float step = 2.0f * std::numbers::pi_v<float> / static_cast< float >( segments );
 	Vector3 prev = { center.x + radius, center.y, center.z };
 	for ( int i = 1; i <= segments; ++i )
@@ -138,7 +137,7 @@ void DebugDraw::Arrow(const Vector3& a, const Vector3& b, const Vector4& color)
 	}
 	const Vector3 s2 = { d.y * s1.z - d.z * s1.y, d.z * s1.x - d.x * s1.z, d.x * s1.y - d.y * s1.x };
 
-	const float head = std::min(len * 0.2f, 2.0f);
+	const float head = ( std::min ) ( len * 0.2f, 2.0f );
 	const float wing = head * 0.4f;
 	const Vector3 base = { b.x - d.x * head, b.y - d.y * head, b.z - d.z * head };
 	const float signs[4][2] = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } };
@@ -150,6 +149,112 @@ void DebugDraw::Arrow(const Vector3& a, const Vector3& b, const Vector4& color)
 			base.z + ( s1.z * sg[0] + s2.z * sg[1] ) * wing,
 		};
 		Line(b, tip, color);
+	}
+}
+
+void DebugDraw::Grid(float halfWidth, uint32_t subdivision, const Vector4& color, const Vector4& centerColor, float y)
+{
+	subdivision = ( std::max ) ( subdivision, 1u );
+	const float every = ( halfWidth * 2.0f ) / static_cast< float >( subdivision ); // 1つ分の長さ
+
+	// 奥から手前への線(Z方向)と、左から右への線(X方向)を順に引く
+	for ( uint32_t i = 0; i <= subdivision; ++i )
+	{
+		const float offset = -halfWidth + every * static_cast< float >( i );
+		const bool isCenter = ( i * 2 == subdivision ); // 原点を通る線
+		const Vector4& c = isCenter ? centerColor : color;
+
+		Line({ offset, y, -halfWidth }, { offset, y, halfWidth }, c);
+		Line({ -halfWidth, y, offset }, { halfWidth, y, offset }, c);
+	}
+}
+
+void DebugDraw::WireSphere(const Sphere& sphere, const Vector4& color, uint32_t subdivision)
+{
+	subdivision = ( std::max ) ( subdivision, 3u );
+	const float pi = std::numbers::pi_v<float>;
+	const float lonEvery = ( 2.0f * pi ) / static_cast< float >( subdivision ); // 経度1つ分
+	const float latEvery = pi / static_cast< float >( subdivision );            // 緯度1つ分
+
+	// 単位球の点を、中心と半径でワールドへ移す
+	auto point = [&sphere] (float lat, float lon) -> Vector3
+	{
+		return {
+			sphere.center.x + sphere.radius * std::cos(lat) * std::cos(lon),
+			sphere.center.y + sphere.radius * std::sin(lat),
+			sphere.center.z + sphere.radius * std::cos(lat) * std::sin(lon),
+		};
+	};
+
+	// 緯度の方向に分割 -π/2 ~ π/2
+	for ( uint32_t latIndex = 0; latIndex < subdivision; ++latIndex )
+	{
+		const float lat = -pi / 2.0f + latEvery * static_cast< float >(latIndex);
+		// 経度の方向に分割 0 ~ 2π
+		for ( uint32_t lonIndex = 0; lonIndex < subdivision; ++lonIndex )
+		{
+			const float lon = static_cast< float >(lonIndex) * lonEvery;
+			const Vector3 a = point(lat, lon);
+			const Vector3 b = point(lat + latEvery, lon);
+			const Vector3 c = point(lat, lon + lonEvery);
+			Line(a, b, color); // ab: 経線
+			Line(a, c, color); // ac: 緯線
+		}
+	}
+}
+
+void DebugDraw::WirePlane(const Plane& plane, const Vector4& color, float halfSize)
+{
+	const Vector3 center = Multiply(plane.distance, plane.normal);
+	Vector3 perpendiculars[4];
+	perpendiculars[0] = Normalize(Perpendicular(plane.normal));
+	perpendiculars[1] = { -perpendiculars[0].x, -perpendiculars[0].y, -perpendiculars[0].z };
+	perpendiculars[2] = Cross(plane.normal, perpendiculars[0]);
+	perpendiculars[3] = { -perpendiculars[2].x, -perpendiculars[2].y, -perpendiculars[2].z };
+
+	Vector3 points[4];
+	for ( int i = 0; i < 4; ++i )
+	{
+		points[i] = Add(center, Multiply(halfSize, perpendiculars[i]));
+	}
+	// 0 → 2 → 1 → 3 → 0 の順に結ぶと四角になる
+	Line(points[0], points[2], color);
+	Line(points[2], points[1], color);
+	Line(points[1], points[3], color);
+	Line(points[3], points[0], color);
+}
+
+void DebugDraw::WireTriangle(const Triangle& triangle, const Vector4& color)
+{
+	Line(triangle.vertices[0], triangle.vertices[1], color);
+	Line(triangle.vertices[1], triangle.vertices[2], color);
+	Line(triangle.vertices[2], triangle.vertices[0], color);
+}
+
+void DebugDraw::WireSegment(const Segment& segment, const Vector4& color)
+{
+	Line(segment.origin, Add(segment.origin, segment.diff), color);
+}
+
+void DebugDraw::Bezier(const Vector3& p0, const Vector3& p1, const Vector3& p2, const Vector4& color,
+	float pointRadius, const Vector4& pointColor, uint32_t curveDivision)
+{
+	curveDivision = ( std::max ) ( curveDivision, 1u );
+	Vector3 previous = p0;
+	for ( uint32_t i = 1; i <= curveDivision; ++i )
+	{
+		const float t = static_cast< float >( i ) / static_cast< float >( curveDivision );
+		const Vector3 next = CreateBezier(p0, p1, p2, t);
+		Line(previous, next, color);
+		previous = next;
+	}
+
+	// コントロールポイント
+	if ( pointRadius > 0.0f )
+	{
+		WireSphere({ p0, pointRadius }, pointColor, 8);
+		WireSphere({ p1, pointRadius }, pointColor, 8);
+		WireSphere({ p2, pointRadius }, pointColor, 8);
 	}
 }
 

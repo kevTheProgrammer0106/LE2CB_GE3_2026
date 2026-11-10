@@ -32,7 +32,7 @@ public:
 
 private:
 	/// 1ウィンドウ分の「UI → 更新 → 描画」。描画したら true
-	bool RunWindowFrame(AppWindow& window, IScene& scene, float deltaTime);
+	bool RunWindowFrame(AppWindow& window, IScene& scene);
 	/// エディタウィンドウを表示して最前面に出す
 	void ShowEditorWindow();
 	/// GPUを待ち、シーンのリソースを解放できる状態にする

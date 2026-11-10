@@ -20,6 +20,8 @@
 #include <chrono>
 #include <cassert>
 
+#include "WorldTransform.h"
+
 class DirectXCommon;
 struct ImGuiContext; // imgui.h を include しなくてもポインタを持てるように前方宣言
 
@@ -82,6 +84,14 @@ public:
 	{
 		syncInterval_ = enabled ? 1 : 0;
 	}
+	/// 背景(画面クリア)の色。RGBAの順で0〜1。Initialize後ならいつでも変えられる(次のフレームから反映)
+	void SetClearColor(const Vector4& color)
+	{
+		clearColor_[0] = color.x;
+		clearColor_[1] = color.y;
+		clearColor_[2] = color.z;
+		clearColor_[3] = color.w;
+	}
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthStencilTextureResource(int32_t width, int32_t height) const;
 	void TransitionBackBuffer(D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after);
@@ -129,6 +139,7 @@ private:
 	uint32_t width_ = 0;
 	uint32_t height_ = 0;
 	UINT syncInterval_ = 1;
+	float clearColor_[4] = { 0.1f, 0.25f, 0.5f, 1.0f }; // 既定は青っぽい色
 
 	// スワップチェーン
 	Microsoft::WRL::ComPtr<IDXGISwapChain4> swapChain;

@@ -7,8 +7,7 @@ namespace
 	constexpr uint32_t kEditorWindowWidth = 960;
 	constexpr uint32_t kEditorWindowHeight = 540;
 
-	// 目標FPS。0にすると固定しない(ゲームウィンドウの垂直同期=モニタのリフレッシュレートに任せる)
-	constexpr uint32_t kTargetFps = 60;
+	constexpr float kDeltaTime = 1.0f / 60.0f;
 }
 
 Application::~Application()
@@ -22,22 +21,21 @@ void Application::Initialize(HINSTANCE instance)
 
 	// ゲームウィンドウ: 閉じたらアプリ終了。垂直同期はここだけで取る
 	gameWindow_.Initialize(instance, dx_, L"GameEngine",
-		kGameWindowWidth, kGameWindowHeight, WindowCloseBehavior::QuitApplication, true);
+		kGameWindowWidth, kGameWindowHeight, WindowCloseBehavior::QuitApplication, true,
+		AppWindow::kDefaultClearColor);
 
 	// エディタウィンドウ: 閉じても隠すだけ。vsync待ちが2回重なってFPSが半減するのを防ぐ
 	editorWindow_.Initialize(instance, dx_, L"Particle Editor",
-		kEditorWindowWidth, kEditorWindowHeight, WindowCloseBehavior::HideWindow, false);
+		kEditorWindowWidth, kEditorWindowHeight, WindowCloseBehavior::HideWindow, false,
+		Vector4{ 0.0f, 0.0f, 0.0f, 1.0f }); // エディタの背景は黒
 
 	// 共有リソース(どちらのウィンドウもRTVフォーマットは同じ)
 	pipelines_.Initialize(dx_, gameWindow_.GetRenderer().GetRtvFormat());
 	assets_.Initialize(dx_);
 
 	// シーン
-	// GameSceneが先: エミッタがライブラリに登録されてから、エディタが一覧を作る
 	gameScene_.Initialize(dx_, assets_, particleLibrary_);
 	particleEditor_.Initialize(dx_, particleLibrary_);
-
-	frameTimer_.Initialize(kTargetFps);
 
 	initialized_ = true;
 }
@@ -46,14 +44,8 @@ void Application::Run()
 {
 	while ( !WinApp::ProcessMessage() )
 	{
-		// 目標FPSまで待ち、前フレームからの実測経過時間を得る(固定の1/60秒ではない)
-		const float deltaTime = frameTimer_.Update();
-
-		// resources/particles/*.particle の外部更新を監視する(変わっていればホットリロード)
-		particleLibrary_.Update(deltaTime);
-
-		const bool gameRendered = RunWindowFrame(gameWindow_, gameScene_, deltaTime);
-		RunWindowFrame(editorWindow_, particleEditor_, deltaTime);
+		const bool gameRendered = RunWindowFrame(gameWindow_, gameScene_);
+		RunWindowFrame(editorWindow_, particleEditor_);
 
 		// F2 かUIのボタンでエディタウィンドウを(再)表示する
 		if ( gameScene_.ConsumeOpenEditorRequest() || gameWindow_.GetInput().TriggerKey(DIK_F2) )
@@ -61,17 +53,8 @@ void Application::Run()
 			ShowEditorWindow();
 		}
 
-		// ゲーム側の「Edit in Particle Editor」ボタン: そのエミッタを選んでエディタを表示する
-		int editIndex = -1;
-		if ( particleLibrary_.ConsumeEditRequest(editIndex) )
-		{
-			particleEditor_.SelectEntry(editIndex);
-			ShowEditorWindow();
-		}
-
-		// ゲームウィンドウが描画されなかった(最小化など)ときは垂直同期で待たされないので、ここで間引く。
-		// FPS固定が有効ならFrameTimerが待つので不要
-		if ( !gameRendered && !frameTimer_.IsLimiting() )
+		// ゲームウィンドウが描画されなかった(最小化など)ときは垂直同期で待たされないので、ここで間引く
+		if ( !gameRendered )
 		{
 			Sleep(16);
 		}
@@ -80,7 +63,7 @@ void Application::Run()
 	Shutdown();
 }
 
-bool Application::RunWindowFrame(AppWindow& window, IScene& scene, float deltaTime)
+bool Application::RunWindowFrame(AppWindow& window, IScene& scene)
 {
 	// 最小化中・非表示中は更新も描画もしない。リサイズもここで適用される
 	if ( !window.BeginFrame() )
@@ -94,7 +77,7 @@ bool Application::RunWindowFrame(AppWindow& window, IScene& scene, float deltaTi
 	// UI → 更新 → 描画 の順
 	window.BeginUi();
 	scene.DrawUi();
-	scene.Update(deltaTime, window.GetInput(), width, height);
+	scene.Update(kDeltaTime, window.GetInput(), width, height);
 
 	window.PreDraw();
 	RenderContext context;

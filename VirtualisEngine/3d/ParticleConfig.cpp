@@ -30,6 +30,11 @@ void ParticleConfig::Sanitize()
 		colorCurve = ParticleCurve::Linear;
 	}
 
+	if ( static_cast< int >( shape ) < 0 || static_cast< int >( shape ) >= static_cast< int >( ParticleEmitShape::Count_ ) )
+	{
+		shape = ParticleEmitShape::Box;
+	}
+
 	maxParticles = std::clamp(maxParticles, 1, kMaxParticlesLimit);
 	emitRate = std::max(emitRate, 0.0f);
 
@@ -57,6 +62,28 @@ void ParticleConfig::Sanitize()
 
 	sizeStart = std::max(sizeStart, 0.0f);
 	sizeEnd = std::max(sizeEnd, 0.0f);
+
+	// 発生範囲・バースト
+	shapeRadius = std::max(shapeRadius, 0.0f);
+	shapeThickness = std::clamp(shapeThickness, 0.0f, 1.0f);
+	startDelay = std::max(startDelay, 0.0f);
+	burstCount = std::clamp(burstCount, 0, kMaxParticlesLimit);
+	burstInterval = std::max(burstInterval, 0.01f); // 0だと同じフレームに無限に出てしまう
+	burstCycles = std::max(burstCycles, 0);
+
+	// 力・衝突
+	inheritVelocity = std::clamp(inheritVelocity, 0.0f, 1.0f);
+	turbulence = std::max(turbulence, 0.0f);
+	turbulenceFrequency = std::max(turbulenceFrequency, 0.0f);
+	bounciness = std::clamp(bounciness, 0.0f, 1.0f);
+	bounceLifeLoss = std::clamp(bounceLifeLoss, 0.0f, 1.0f);
+
+	// 見た目
+	sizeRandomness = std::clamp(sizeRandomness, 0.0f, 1.0f);
+	colorMidTime = std::clamp(colorMidTime, 0.01f, 0.99f); // 0や1だと区間の割り算が壊れる
+	fadeIn = std::clamp(fadeIn, 0.0f, 0.5f);
+	stretchScale = std::max(stretchScale, 0.0f);
+	stretchMax = std::max(stretchMax, 1.0f);
 
 	if ( rotationMin > rotationMax )
 	{
@@ -86,18 +113,18 @@ ParticleConfig ParticleConfig::MakeFire()
 
 	c.emitRate = 80.0f;
 	c.looping = true;
-	c.spawnExtent = { 0.6f, 0.1f, 0.6f };
+	c.spawnExtent = { 1.5f, 0.2f, 1.5f };
 
 	c.lifetimeMin = 1.2f;
 	c.lifetimeMax = 2.2f;
-	c.speedMin = 1.5f;
-	c.speedMax = 2.5f;
+	c.speedMin = 3.0f;
+	c.speedMax = 5.0f;
 	c.direction = { 0.0f, 1.0f, 0.0f };
 	c.spreadAngle = 25.0f;
-	c.gravity = { 0.0f, 1.0f, 0.0f }; // 炎は上へ加速する
+	c.gravity = { 0.0f, 2.0f, 0.0f }; // 炎は上へ加速する
 	c.drag = 0.6f;
 
-	c.sizeStart = 1.5f;
+	c.sizeStart = 3.0f;
 	c.sizeEnd = 0.0f;
 	c.sizeCurve = ParticleCurve::Linear;
 
@@ -149,6 +176,132 @@ ParticleConfig ParticleConfig::MakeSparkle2D()
 	return c;
 }
 
+ParticleConfig ParticleConfig::MakeExplosion()
+{
+	ParticleConfig c;
+	c.renderMode = ParticleRenderMode::Billboard3D;
+	c.blendMode = ParticleBlendMode::Add;
+	c.maxParticles = 512;
+
+	// バーストで一斉に出す(自動発生はしない)
+	c.looping = false;
+	c.burstCount = 200;
+	c.burstInterval = 2.0f;
+	c.burstCycles = 0; // 無限に繰り返す(単発なら1)
+
+	// 小さな球の表面から外向きに
+	c.shape = ParticleEmitShape::Sphere;
+	c.shapeRadius = 0.3f;
+	c.shapeThickness = 0.0f;
+	c.emitOutward = true;
+	c.spreadAngle = 15.0f;
+
+	c.lifetimeMin = 0.6f;
+	c.lifetimeMax = 1.2f;
+	c.speedMin = 4.0f;
+	c.speedMax = 9.0f;
+	c.drag = 2.5f;
+	c.gravity = { 0.0f, 1.0f, 0.0f };
+
+	c.sizeStart = 1.4f;
+	c.sizeEnd = 0.0f;
+	c.sizeCurve = ParticleCurve::EaseOut;
+	c.sizeRandomness = 0.4f;
+
+	c.colorStart = { 1.0f, 0.95f, 0.6f, 1.0f };
+	c.useColorMid = true;
+	c.colorMid = { 1.0f, 0.45f, 0.1f, 0.8f };
+	c.colorMidTime = 0.35f;
+	c.colorEnd = { 0.3f, 0.05f, 0.0f, 0.0f };
+	return c;
+}
+
+ParticleConfig ParticleConfig::MakeSparks()
+{
+	ParticleConfig c;
+	c.renderMode = ParticleRenderMode::Billboard3D;
+	c.blendMode = ParticleBlendMode::Add;
+	c.maxParticles = 512;
+
+	c.emitRate = 90.0f;
+	c.looping = true;
+	c.spawnExtent = { 0.1f, 0.1f, 0.1f };
+
+	c.lifetimeMin = 0.8f;
+	c.lifetimeMax = 1.6f;
+	c.speedMin = 4.0f;
+	c.speedMax = 8.0f;
+	c.direction = { 0.0f, 1.0f, 0.0f };
+	c.spreadAngle = 45.0f;
+	c.gravity = { 0.0f, -12.0f, 0.0f };
+
+	// 地面(Y=0)で跳ねる
+	c.groundCollision = true;
+	c.groundHeight = 0.0f;
+	c.bounciness = 0.45f;
+	c.bounceLifeLoss = 0.25f;
+
+	// 進行方向に伸ばす(細長い火花)
+	c.alignToVelocity = true;
+	c.stretchScale = 0.25f;
+	c.stretchMax = 6.0f;
+
+	c.sizeStart = 0.25f;
+	c.sizeEnd = 0.05f;
+	c.sizeRandomness = 0.3f;
+
+	c.randomColor = true;
+	c.colorStart = { 1.0f, 0.9f, 0.4f, 1.0f };
+	c.colorStartB = { 1.0f, 0.5f, 0.15f, 1.0f };
+	c.colorEnd = { 1.0f, 0.2f, 0.0f, 0.0f };
+	return c;
+}
+
+ParticleConfig ParticleConfig::MakeSmoke()
+{
+	ParticleConfig c;
+	c.renderMode = ParticleRenderMode::Billboard3D;
+	c.blendMode = ParticleBlendMode::Normal;
+	c.maxParticles = 256;
+
+	c.emitRate = 20.0f;
+	c.looping = true;
+	c.shape = ParticleEmitShape::Circle;
+	c.shapeRadius = 0.4f;
+
+	c.lifetimeMin = 3.0f;
+	c.lifetimeMax = 5.0f;
+	c.speedMin = 0.8f;
+	c.speedMax = 1.4f;
+	c.spreadAngle = 12.0f;
+	c.gravity = { 0.0f, 0.3f, 0.0f };
+	c.drag = 0.3f;
+
+	// ゆらゆら昇る
+	c.turbulence = 1.6f;
+	c.turbulenceFrequency = 0.6f;
+	c.turbulenceSpeed = 0.4f;
+
+	c.sizeStart = 1.0f;
+	c.sizeEnd = 3.5f;
+	c.sizeCurve = ParticleCurve::EaseOut;
+	c.sizeRandomness = 0.25f;
+
+	c.rotationMin = 0.0f;
+	c.rotationMax = 360.0f;
+	c.rotationSpeedMin = -20.0f;
+	c.rotationSpeedMax = 20.0f;
+
+	// 灰色が薄れていく。出始めはふわっと現れる
+	c.fadeIn = 0.15f;
+	c.colorStart = { 0.35f, 0.35f, 0.35f, 0.6f };
+	c.useColorMid = true;
+	c.colorMid = { 0.5f, 0.5f, 0.5f, 0.45f };
+	c.colorMidTime = 0.5f;
+	c.colorEnd = { 0.7f, 0.7f, 0.7f, 0.0f };
+	return c;
+}
+
 //===================================================================
 // テキスト入出力
 //
@@ -189,6 +342,43 @@ namespace
 		v.Vec4("colorStart", c.colorStart);
 		v.Vec4("colorEnd", c.colorEnd);
 		v.Enum("colorCurve", c.colorCurve, kCurveNames, static_cast< int >( ParticleCurve::Count_ ));
+
+		// --- 追加項目(古いファイルには無いので、読み込み時は既定値のまま) ---
+		v.Enum("shape", c.shape, kEmitShapeNames, static_cast< int >( ParticleEmitShape::Count_ ));
+		v.Float("shapeRadius", c.shapeRadius);
+		v.Float("shapeThickness", c.shapeThickness);
+		v.Bool("emitOutward", c.emitOutward);
+
+		v.Float("startDelay", c.startDelay);
+		v.Int("burstCount", c.burstCount);
+		v.Float("burstInterval", c.burstInterval);
+		v.Int("burstCycles", c.burstCycles);
+
+		v.Float("inheritVelocity", c.inheritVelocity);
+		v.Bool("localSpace", c.localSpace);
+		v.Float("radialAcceleration", c.radialAcceleration);
+		v.Float("orbitSpeed", c.orbitSpeed);
+		v.Float("turbulence", c.turbulence);
+		v.Float("turbulenceFrequency", c.turbulenceFrequency);
+		v.Float("turbulenceSpeed", c.turbulenceSpeed);
+
+		v.Bool("groundCollision", c.groundCollision);
+		v.Float("groundHeight", c.groundHeight);
+		v.Float("bounciness", c.bounciness);
+		v.Float("bounceLifeLoss", c.bounceLifeLoss);
+
+		v.Float("sizeRandomness", c.sizeRandomness);
+
+		v.Bool("randomColor", c.randomColor);
+		v.Vec4("colorStartB", c.colorStartB);
+		v.Bool("useColorMid", c.useColorMid);
+		v.Vec4("colorMid", c.colorMid);
+		v.Float("colorMidTime", c.colorMidTime);
+		v.Float("fadeIn", c.fadeIn);
+
+		v.Bool("alignToVelocity", c.alignToVelocity);
+		v.Float("stretchScale", c.stretchScale);
+		v.Float("stretchMax", c.stretchMax);
 	}
 
 	// 設定 -> テキスト

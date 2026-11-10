@@ -1,4 +1,3 @@
-#define NOMINMAX
 #include "Particle.h"
 
 #include <algorithm>
@@ -19,17 +18,10 @@ namespace
 {
 	constexpr float kDegToRad = std::numbers::pi_v<float> / 180.0f;
 
-	float ApplyCurve(ParticleCurve curve, float start, float end, float t)
-	{
-		return curve == ParticleCurve::EaseInOut ? EaseInOut(start, end, t) : Lerp(start, end, t);
-	}
+	// カーブ・色の計算は ParticleSim にある
+	using ParticleSim::ApplyCurve;
 
-	Vector3 Cross(const Vector3& a, const Vector3& b)
-	{
-		return { a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x };
-	}
-
-	// 正規化(長さがほぼ0なら fallback を返す)
+	// 0〜2π / ±π 付近まで安全に使える正規化(長さ0なら fallback)
 	Vector3 NormalizeOr(const Vector3& v, const Vector3& fallback)
 	{
 		const float length = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
@@ -152,6 +144,26 @@ void ParticleEmitter::SetConfig(const ParticleConfig& config)
 }
 
 //===================================================================
+// 終点エミッタ
+//===================================================================
+void ParticleEmitter::SetEndEmitter(const ParticleEmitter* endEmitter)
+{
+	endEmitter_ = endEmitter;
+}
+
+void ParticleEmitter::ClearEndEmitter()
+{
+	endEmitter_ = nullptr;
+}
+
+bool ParticleEmitter::HasActiveEndPoint() const
+{
+	return endEmitter_ != nullptr
+		&& endEmitter_ != this
+		&& endEmitter_->config_.renderMode == config_.renderMode;
+}
+
+//===================================================================
 // 更新
 //===================================================================
 float ParticleEmitter::RandomRange(float minValue, float maxValue)
@@ -172,17 +184,32 @@ void ParticleEmitter::Spawn()
 	}
 
 	const bool is2D = ( config_.renderMode == ParticleRenderMode::Screen2D );
+	// 終点エミッタを使うときは道のりで動くので、ローカル空間にはしない
+	const bool local = config_.localSpace && !HasActiveEndPoint();
 
 	Particle p;
 	p.age = 0.0f;
 	p.lifetime = RandomRange(config_.lifetimeMin, config_.lifetimeMax);
+	p.localSpace = local;
 
-	// 位置: エミッタを中心にした箱の中のランダムな点
-	p.position = {
-		position.x + RandomRange(-config_.spawnExtent.x, config_.spawnExtent.x),
-		position.y + RandomRange(-config_.spawnExtent.y, config_.spawnExtent.y),
-		is2D ? 0.0f : position.z + RandomRange(-config_.spawnExtent.z, config_.spawnExtent.z),
-	};
+	// 位置: 発生範囲の形(Box / Sphere / ...)の中のランダムな点。形の空間はYが上なので、2DではYを反転して画面に置く
+	const ParticleSim::ShapeSample shape = ParticleSim::SampleEmitShape(config_, is2D, rng_);
+	const Vector3 base = local ? Vector3{ 0.0f, 0.0f, 0.0f } : position;
+	if ( is2D )
+	{
+		p.position = { base.x + shape.offset.x, base.y - shape.offset.y, 0.0f };
+	} else
+	{
+		p.position = { base.x + shape.offset.x, base.y + shape.offset.y, base.z + shape.offset.z };
+	}
+
+	// 発射方向: 設定の direction、または emitOutward のとき形の中心から外向き
+	Vector3 direction = config_.direction;
+	const float outwardLength = std::sqrt(shape.outward.x * shape.outward.x + shape.outward.y * shape.outward.y + shape.outward.z * shape.outward.z);
+	if ( config_.emitOutward && outwardLength > 1e-6f )
+	{
+		direction = shape.outward;
+	}
 
 	// 速度: 発射方向を中心にした円錐(2Dは扇形)の中のランダムな向き
 	const float speed = RandomRange(config_.speedMin, config_.speedMax);
@@ -191,13 +218,13 @@ void ParticleEmitter::Spawn()
 	if ( is2D )
 	{
 		// 設定のYは「上が+」。画面のYは下向きなので、最後にYを反転する
-		const float baseAngle = std::atan2(config_.direction.y, config_.direction.x);
+		const float baseAngle = std::atan2(direction.y, direction.x);
 		const float angle = baseAngle + RandomRange(-spread, spread);
 		p.velocity = { std::cos(angle) * speed, -std::sin(angle) * speed, 0.0f };
 		p.gravity = { config_.gravity.x, -config_.gravity.y, 0.0f };
 	} else
 	{
-		const Vector3 forward = NormalizeOr(config_.direction, { 0.0f, 1.0f, 0.0f });
+		const Vector3 forward = NormalizeOr(direction, { 0.0f, 1.0f, 0.0f });
 		// forward に直交する2軸を作る
 		const Vector3 helper = ( std::fabs(forward.y) < 0.99f ) ? Vector3{ 0.0f, 1.0f, 0.0f } : Vector3{ 1.0f, 0.0f, 0.0f };
 		const Vector3 right = NormalizeOr(Cross(helper, forward), { 1.0f, 0.0f, 0.0f });
@@ -205,7 +232,7 @@ void ParticleEmitter::Spawn()
 
 		// 円錐の中で一様になるよう、cosθ を一様にサンプリングする
 		const float cosTheta = RandomRange(std::cos(spread), 1.0f);
-		const float sinTheta = std::sqrt(std::max(0.0f, 1.0f - cosTheta * cosTheta));
+		const float sinTheta = std::sqrt(( std::max ) ( 0.0f, 1.0f - cosTheta * cosTheta ));
 		const float phi = RandomRange(0.0f, 2.0f * std::numbers::pi_v<float>);
 		const float cx = std::cos(phi) * sinTheta;
 		const float cy = std::sin(phi) * sinTheta;
@@ -218,16 +245,77 @@ void ParticleEmitter::Spawn()
 		p.gravity = config_.gravity;
 	}
 
+	// エミッタの移動速度を引き継ぐ(ローカル空間では粒ごとエミッタと一緒に動くので不要)
+	if ( !local && config_.inheritVelocity > 0.0f )
+	{
+		p.velocity.x += emitterVelocity_.x * config_.inheritVelocity;
+		p.velocity.y += emitterVelocity_.y * config_.inheritVelocity;
+		if ( !is2D )
+		{
+			p.velocity.z += emitterVelocity_.z * config_.inheritVelocity;
+		}
+	}
+
 	p.drag = config_.drag;
 	p.rotation = RandomRange(config_.rotationMin, config_.rotationMax) * kDegToRad;
 	p.rotationSpeed = RandomRange(config_.rotationSpeedMin, config_.rotationSpeedMax) * kDegToRad;
 
-	p.sizeStart = config_.sizeStart;
-	p.sizeEnd = config_.sizeEnd;
+	// サイズ: 粒ごとに ±sizeRandomness の倍率を掛ける(開始と終了に同じ倍率なので、縮む割合は変わらない)
+	const float sizeScale = ( config_.sizeRandomness > 0.0f ) ? 1.0f + RandomRange(-config_.sizeRandomness, config_.sizeRandomness) : 1.0f;
+	p.sizeStart = config_.sizeStart * sizeScale;
+	p.sizeEnd = config_.sizeEnd * sizeScale;
 	p.sizeCurve = config_.sizeCurve;
+
+	// 色: randomColor のときは colorStart と colorStartB の間のランダムな色
 	p.colorStart = config_.colorStart;
+	if ( config_.randomColor )
+	{
+		const float mix = RandomRange(0.0f, 1.0f);
+		p.colorStart = {
+			Lerp(config_.colorStart.x, config_.colorStartB.x, mix),
+			Lerp(config_.colorStart.y, config_.colorStartB.y, mix),
+			Lerp(config_.colorStart.z, config_.colorStartB.z, mix),
+			Lerp(config_.colorStart.w, config_.colorStartB.w, mix),
+		};
+	}
 	p.colorEnd = config_.colorEnd;
 	p.colorCurve = config_.colorCurve;
+	p.useColorMid = config_.useColorMid;
+	p.colorMid = config_.colorMid;
+	p.colorMidTime = config_.colorMidTime;
+	p.fadeIn = config_.fadeIn;
+
+	// 力・衝突・向き
+	p.radialAccel = config_.radialAcceleration;
+	p.orbitSpeed = config_.orbitSpeed * kDegToRad;
+	p.turbulence = config_.turbulence;
+	p.turbulenceFreq = config_.turbulenceFrequency;
+	p.turbulenceSpeed = config_.turbulenceSpeed;
+	p.seed = RandomRange(0.0f, 100.0f);
+	p.groundCollision = config_.groundCollision;
+	p.groundHeight = config_.groundHeight;
+	p.bounciness = config_.bounciness;
+	p.bounceLifeLoss = config_.bounceLifeLoss;
+	p.alignToVelocity = config_.alignToVelocity;
+	p.stretchScale = config_.stretchScale;
+	p.stretchMax = config_.stretchMax;
+
+	// 終点エミッタがあれば、速度ではなく「始点 → 終点」の道のりで動く粒にする
+	if ( HasActiveEndPoint() )
+	{
+		p.followPath = true;
+		p.pathStart = { position.x, position.y, is2D ? 0.0f : position.z };
+		p.pathEnd = { endEmitter_->position.x, endEmitter_->position.y, is2D ? 0.0f : endEmitter_->position.z };
+		p.offsetUnit = { RandomRange(-1.0f, 1.0f), RandomRange(-1.0f, 1.0f), is2D ? 0.0f : RandomRange(-1.0f, 1.0f) };
+		p.startExtent = config_.spawnExtent;
+		p.endExtent = endEmitter_->config_.spawnExtent; // 終点側の広がり = 終点エミッタの spawnExtent
+		p.pathCurve = endTravelCurve;
+		p.velocity = { 0.0f, 0.0f, 0.0f };
+		p.gravity = { 0.0f, 0.0f, 0.0f };
+		p.drag = 0.0f;
+		// t = 0 の位置(上で決めた位置と同じ式)
+		p.position = Add(p.pathStart, Multiply(p.offsetUnit, p.startExtent));
+	}
 
 	particles_.push_back(p);
 }
@@ -245,6 +333,7 @@ void ParticleEmitter::Clear()
 	particles_.clear();
 	instanceCount_ = 0;
 	emitAccumulator_ = 0.0f;
+	scheduler_.Reset();
 }
 
 void ParticleEmitter::Update(float deltaTime)
@@ -256,14 +345,39 @@ void ParticleEmitter::Update(float deltaTime)
 		syncedRevision_ = entry_->revision;
 	}
 
-	// --- 発生 ---
-	if ( enabled && config_.looping )
+	const bool is2D = ( config_.renderMode == ParticleRenderMode::Screen2D );
+
+	// --- エミッタの移動速度(inheritVelocity用) ---
+	if ( hasLastPosition_ && deltaTime > 1e-5f )
 	{
-		emitAccumulator_ += config_.emitRate * deltaTime;
-		while ( emitAccumulator_ >= 1.0f )
+		emitterVelocity_ = {
+			( position.x - lastPosition_.x ) / deltaTime,
+			( position.y - lastPosition_.y ) / deltaTime,
+			( position.z - lastPosition_.z ) / deltaTime,
+		};
+	} else
+	{
+		emitterVelocity_ = { 0.0f, 0.0f, 0.0f };
+	}
+	lastPosition_ = position;
+	hasLastPosition_ = true;
+
+	// --- 発生: バースト + 自動発生(どちらも startDelay が過ぎてから) ---
+	if ( enabled )
+	{
+		Emit(scheduler_.Advance(deltaTime, config_));
+
+		if ( config_.looping && scheduler_.HasStarted(config_) )
 		{
-			Spawn();
-			emitAccumulator_ -= 1.0f;
+			emitAccumulator_ += config_.emitRate * deltaTime;
+			while ( emitAccumulator_ >= 1.0f )
+			{
+				Spawn();
+				emitAccumulator_ -= 1.0f;
+			}
+		} else
+		{
+			emitAccumulator_ = 0.0f;
 		}
 	} else
 	{
@@ -283,16 +397,110 @@ void ParticleEmitter::Update(float deltaTime)
 			continue;
 		}
 
-		p.velocity.x += p.gravity.x * deltaTime;
-		p.velocity.y += p.gravity.y * deltaTime;
-		p.velocity.z += p.gravity.z * deltaTime;
+		if ( p.followPath )
+		{
+			// 道のり travel(0〜1)。位置 = 始点と終点の補間 + 乱数のずれ × 広がり(始点の広がり → 終点の広がり)
+			const float t = std::clamp(p.age / p.lifetime, 0.0f, 1.0f);
+			const float travel = ApplyCurve(p.pathCurve, 0.0f, 1.0f, t);
+			const Vector3 center = Lerp(p.pathStart, p.pathEnd, travel);
+			const Vector3 extent = Lerp(p.startExtent, p.endExtent, travel);
+			const Vector3 previous = p.position;
+			p.position = Add(center, Multiply(p.offsetUnit, extent));
 
-		const float damping = std::max(0.0f, 1.0f - p.drag * deltaTime);
+			// 進行方向への伸ばし(alignToVelocity)のために、位置の変化から速度を出しておく
+			if ( deltaTime > 1e-5f )
+			{
+				p.velocity = ( p.position - previous ) / deltaTime;
+			}
+
+			p.rotation += p.rotationSpeed * deltaTime;
+			++i;
+			continue;
+		}
+
+		// 力の中心: ワールド空間ならエミッタの位置、ローカル空間なら原点
+		Vector3 origin = { 0.0f, 0.0f, 0.0f };
+		if ( !p.localSpace )
+		{
+			origin = { position.x, position.y, is2D ? 0.0f : position.z };
+		}
+
+		// 加速度 = 重力 + 放射 + 乱流
+		Vector3 accel = p.gravity;
+		if ( p.radialAccel != 0.0f )
+		{
+			const Vector3 offset = p.position - origin;
+			const float length = Length(offset);
+			if ( length > 1e-5f )
+			{
+				accel += offset * ( p.radialAccel / length );
+			}
+		}
+		if ( p.turbulence > 0.0f )
+		{
+			Vector3 noise = ParticleSim::TurbulenceAccel(p.position, p.age, p.seed, p.turbulence, p.turbulenceFreq, p.turbulenceSpeed);
+			if ( is2D )
+			{
+				noise.z = 0.0f;
+			}
+			accel += noise;
+		}
+		p.velocity += accel * deltaTime;
+
+		const float damping = ( std::max ) ( 0.0f, 1.0f - p.drag * deltaTime );
 		p.velocity *= damping;
 
-		p.position.x += p.velocity.x * deltaTime;
-		p.position.y += p.velocity.y * deltaTime;
-		p.position.z += p.velocity.z * deltaTime;
+		p.position += p.velocity * deltaTime;
+
+		// 中心まわりの回転(3DはY軸、2Dは画面)
+		if ( p.orbitSpeed != 0.0f )
+		{
+			const float angle = p.orbitSpeed * deltaTime;
+			const float c = std::cos(angle);
+			const float s = std::sin(angle);
+			const Vector3 offset = p.position - origin;
+			if ( is2D )
+			{
+				p.position = { origin.x + offset.x * c - offset.y * s, origin.y + offset.x * s + offset.y * c, 0.0f };
+			} else
+			{
+				p.position = { origin.x + offset.x * c + offset.z * s, p.position.y, origin.z - offset.x * s + offset.z * c };
+			}
+		}
+
+		// 地面との衝突(水平な無限平面)
+		if ( p.groundCollision )
+		{
+			const float emitterY = p.localSpace ? position.y : 0.0f; // ローカル空間の粒のワールドYは、相対Y + エミッタのY
+			const float worldY = p.position.y + emitterY;
+			bool bounced = false;
+			if ( is2D )
+			{
+				// 画面のYは下向き: 床より下(値が大きい)に入ったら衝突
+				if ( worldY > p.groundHeight )
+				{
+					p.position.y = p.groundHeight - emitterY;
+					if ( p.velocity.y > 0.0f )
+					{
+						p.velocity.y = -p.velocity.y * p.bounciness;
+						bounced = true;
+					}
+				}
+			} else if ( worldY < p.groundHeight )
+			{
+				p.position.y = p.groundHeight - emitterY;
+				if ( p.velocity.y < 0.0f )
+				{
+					p.velocity.y = -p.velocity.y * p.bounciness;
+					bounced = true;
+				}
+			}
+			if ( bounced )
+			{
+				// 跳ねるたびに残り寿命を削る(いつまでも跳ね続けないように)
+				p.age += ( p.lifetime - p.age ) * p.bounceLifeLoss;
+			}
+		}
 
 		p.rotation += p.rotationSpeed * deltaTime;
 		++i;
@@ -322,25 +530,60 @@ void ParticleEmitter::BuildInstances(const Matrix4x4& view, const Matrix4x4& pro
 		}
 	}
 
-	const size_t count = std::min<size_t>(particles_.size(), ParticleConfig::kMaxParticlesLimit);
+	const size_t count = ( std::min ) ( particles_.size(), static_cast< size_t >(ParticleConfig::kMaxParticlesLimit) );
 	for ( size_t i = 0; i < count; ++i )
 	{
 		const Particle& p = particles_[i];
 		const float t = std::clamp(p.age / p.lifetime, 0.0f, 1.0f);
 
+		// ローカル空間の粒は、描くときにエミッタの現在位置を足す
+		Vector3 worldPosition = p.position;
+		if ( p.localSpace )
+		{
+			worldPosition.x += position.x;
+			worldPosition.y += position.y;
+			worldPosition.z += is2D ? 0.0f : position.z;
+		}
+
 		// 板ポリは -1〜1 なので、見た目の幅 = size にするには半分を掛ける
 		const float half = ApplyCurve(p.sizeCurve, p.sizeStart, p.sizeEnd, t) * 0.5f;
-		const float c = std::cos(p.rotation);
-		const float s = std::sin(p.rotation);
+
+		// 回転と、進行方向への伸ばし(Stretched Billboard)
+		float angle = p.rotation;
+		float stretch = 1.0f;
+		if ( p.alignToVelocity )
+		{
+			const float speed = Length(p.velocity);
+			stretch = std::clamp(1.0f + p.stretchScale * speed, 1.0f, p.stretchMax);
+			if ( is2D )
+			{
+				// 板ポリの「上」は画面の (s, -c)。これを速度の向きに合わせる → angle = atan2(vx, -vy)
+				if ( std::fabs(p.velocity.x) + std::fabs(p.velocity.y) > 1e-4f )
+				{
+					angle += std::atan2(p.velocity.x, -p.velocity.y);
+				}
+			} else
+			{
+				// 速度をカメラの右・上へ射影し、画面上の向きを求める。板ポリの「上」は (-s)*右 + c*上 → angle = atan2(-dx, dy)
+				const float dx = p.velocity.x * billboard[0][0] + p.velocity.y * billboard[0][1] + p.velocity.z * billboard[0][2];
+				const float dy = p.velocity.x * billboard[1][0] + p.velocity.y * billboard[1][1] + p.velocity.z * billboard[1][2];
+				if ( dx * dx + dy * dy > 1e-8f )
+				{
+					angle += std::atan2(-dx, dy);
+				}
+			}
+		}
+		const float c = std::cos(angle);
+		const float s = std::sin(angle);
 
 		Matrix4x4 world = MakeIdentityMatrix();
 		if ( is2D )
 		{
-			// 拡大(Yは画面が下向きなので反転) → Z回転 → 平行移動
-			world.m[0][0] = half * c;   world.m[0][1] = half * s;
-			world.m[1][0] = half * s;   world.m[1][1] = -half * c;
-			world.m[3][0] = p.position.x;
-			world.m[3][1] = p.position.y;
+			// 拡大(Yは画面が下向きなので反転。伸ばしは板ポリの縦方向) → Z回転 → 平行移動
+			world.m[0][0] = half * c;             world.m[0][1] = half * s;
+			world.m[1][0] = half * s * stretch;   world.m[1][1] = -half * c * stretch;
+			world.m[3][0] = worldPosition.x;
+			world.m[3][1] = worldPosition.y;
 			world.m[3][2] = 0.0f;
 		} else
 		{
@@ -350,6 +593,7 @@ void ParticleEmitter::BuildInstances(const Matrix4x4& view, const Matrix4x4& pro
 				{ -s, c, 0.0f },
 				{ 0.0f, 0.0f, 1.0f },
 			};
+			const float rowScale[3] = { half, half * stretch, half }; // 板ポリの縦(第1行)だけ伸ばす
 			for ( int row = 0; row < 3; ++row )
 			{
 				for ( int col = 0; col < 3; ++col )
@@ -359,22 +603,18 @@ void ParticleEmitter::BuildInstances(const Matrix4x4& view, const Matrix4x4& pro
 					{
 						sum += rz[row][k] * billboard[k][col];
 					}
-					world.m[row][col] = sum * half;
+					world.m[row][col] = sum * rowScale[row];
 				}
 			}
-			world.m[3][0] = p.position.x;
-			world.m[3][1] = p.position.y;
-			world.m[3][2] = p.position.z;
+			world.m[3][0] = worldPosition.x;
+			world.m[3][1] = worldPosition.y;
+			world.m[3][2] = worldPosition.z;
 		}
 
 		ParticleInstanceData& out = instanceData_[i];
 		out.WVP = Multiply(world, viewProjection);
-		out.color = {
-			ApplyCurve(p.colorCurve, p.colorStart.x, p.colorEnd.x, t),
-			ApplyCurve(p.colorCurve, p.colorStart.y, p.colorEnd.y, t),
-			ApplyCurve(p.colorCurve, p.colorStart.z, p.colorEnd.z, t),
-			ApplyCurve(p.colorCurve, p.colorStart.w, p.colorEnd.w, t),
-		};
+		out.color = ParticleSim::EvaluateColor(p.colorStart, p.colorMid, p.useColorMid, p.colorMidTime, p.colorEnd,
+			p.colorCurve, p.fadeIn, t);
 	}
 	instanceCount_ = static_cast< uint32_t >( count );
 }
@@ -419,6 +659,16 @@ void ParticleEmitter::DrawUi()
 
 	ImGui::Checkbox("Enabled", &enabled);
 	ImGui::DragFloat3("Position", &position.x, config_.renderMode == ParticleRenderMode::Screen2D ? 1.0f : 0.1f);
+
+	if ( endEmitter_ != nullptr )
+	{
+		ImGui::Text("End Point: %s%s", endEmitter_->name_.c_str(), HasActiveEndPoint() ? "" : "  (ignored: render mode differs)");
+		int curve = static_cast< int >( endTravelCurve );
+		if ( ImGui::Combo("Travel Curve", &curve, kCurveItems) )
+		{
+			endTravelCurve = static_cast< ParticleCurve >( curve );
+		}
+	}
 
 	if ( ImGui::Button("Burst (32)") )
 	{
