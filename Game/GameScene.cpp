@@ -1,10 +1,11 @@
 #define NOMINMAX
 #include "GameScene.h"
+#include "GameAssets.h"
 
-#include "AssetCache.h"
-#include "DirectXCommon.h"
-#include "InputManager.h"
-#include "PipelineManager.h"
+#include "Engine/Graphics/AssetCache.h"
+#include "Engine/Graphics/DirectXCommon.h"
+#include "Engine/Platform/InputManager.h"
+#include "Engine/Graphics/PipelineManager.h"
 
 #include <algorithm>
 #include <iterator>
@@ -24,16 +25,16 @@ void GameScene::Initialize(DirectXCommon& dx, const AssetCache& assets, Particle
 
 	// カメラの設定はウィンドウ(ビュー)ごとに変えられる。ここを書き換えるだけでゲーム側のカメラが変わる
 	CameraSettings cameraSettings;
-	cameraSettings.pose.translation = { 0.0f, 0.0f, -10.0f };
+	cameraSettings.pose.translation = { 0.0f, 0.0f, -5.0f };
 	camera_.Initialize(cameraSettings);
 	light_.Initialize(dx);
 
-	object1_.Initialize(dx, ModelNode::Sphere);
+	object1_.Initialize(dx, GameAssets::kSphere);
 
-	object2_.Initialize(dx, ModelNode::Plane);
+	object2_.Initialize(dx, GameAssets::kPlane);
 	object2_.transform.translate = { 3.0f, 0.0f, 0.0f, 0.0f };
 
-	sprite_.Initialize(dx, assets.GetSpriteTexture().srvGpu);
+	sprite_.Initialize(dx, assets.GetCheckerTexture().srvGpu);
 	instancing_.Initialize(dx);
 
 	// パーティクル: 名前 + 初期設定。resources/particles/名前.particle があればそちらが優先される
@@ -109,7 +110,7 @@ ParticleEmitter* GameScene::AddEmitter(ParticleRenderMode mode, const std::strin
 
 void GameScene::DeleteShape(int index)
 {
-	if ( index < 0 || index >= static_cast< int >(shapes_.size()) )
+	if ( index < 0 || index >= static_cast< int >( shapes_.size() ) )
 	{
 		return;
 	}
@@ -153,7 +154,7 @@ void GameScene::Update(float deltaTime, InputManager& input, float clientWidth, 
 	{
 		if ( modelColliders_[i].autoFit )
 		{
-			const Bounds& bounds = assets_->GetModel(models_[i]->modelNode).bounds;
+			const Bounds& bounds = assets_->GetModel(models_[i]->modelName).bounds;
 			if ( bounds.valid )
 			{
 				modelColliders_[i].FitToBounds({ bounds.min, bounds.max }, 0.05f);
@@ -184,7 +185,7 @@ std::vector<GameScene::ColliderItem> GameScene::CollectColliders() const
 	{
 		if ( shapes_[i]->visible )
 		{
-			items.push_back({ { SceneItemKind::Shape, static_cast< int >(i) }, shapes_[i]->collider, shapes_[i]->GetWorldMatrix(), false });
+			items.push_back({ { SceneItemKind::Shape, static_cast< int >( i ) }, shapes_[i]->collider, shapes_[i]->GetWorldMatrix(), false });
 		}
 	}
 
@@ -197,7 +198,7 @@ std::vector<GameScene::ColliderItem> GameScene::CollectColliders() const
 	}
 
 	// 3Dのパーティクルエミッタ(発生範囲の箱。2Dは画面座標なので3Dのレイでは選べない)
-	for ( int i = 0; i < static_cast< int >(std::size(emitters_)); ++i )
+	for ( int i = 0; i < static_cast< int >( std::size(emitters_) ); ++i )
 	{
 		const ParticleEmitter& emitter = *emitters_[i];
 		if ( !emitter.enabled || emitter.GetRenderMode() != ParticleRenderMode::Billboard3D )
@@ -294,7 +295,7 @@ void GameScene::BuildDebugLines()
 	}
 
 	// 終点エミッタを持つ3Dエミッタは、始点 → 終点の矢印を出す(選択中か、コライダー表示がオンのとき)
-	for ( int i = 0; i < static_cast< int >(std::size(emitters_)); ++i )
+	for ( int i = 0; i < static_cast< int >( std::size(emitters_) ); ++i )
 	{
 		const ParticleEmitter& emitter = *emitters_[i];
 		if ( !emitter.enabled || !emitter.HasActiveEndPoint() || emitter.GetRenderMode() != ParticleRenderMode::Billboard3D )
@@ -443,7 +444,7 @@ void GameScene::DrawHierarchyUi()
 		// 3D版(Box / Line / Triangle / Sphere / Cone)の次に、2D版(Quad / Circle)
 		for ( int i = 0; i < kShapeTypeCount * 2; ++i )
 		{
-			const ShapeType type = static_cast< ShapeType >(i % kShapeTypeCount);
+			const ShapeType type = static_cast< ShapeType >( i % kShapeTypeCount );
 			const bool flat = ( i >= kShapeTypeCount );
 			if ( flat )
 			{
@@ -496,12 +497,12 @@ void GameScene::DrawHierarchyUi()
 	for ( size_t i = 0; i < shapes_.size(); ++i )
 	{
 		const std::string label = shapes_[i]->name + "  [" + shapes_[i]->GetDisplayName() + "]";
-		HierarchyRow(label.c_str(), SceneItemKind::Shape, static_cast< int >(i), &shapes_[i]->visible);
+		HierarchyRow(label.c_str(), SceneItemKind::Shape, static_cast< int >( i ), &shapes_[i]->visible);
 	}
 
 	ImGui::Separator();
 	ImGui::TextDisabled("Particles");
-	for ( int i = 0; i < static_cast< int >(std::size(emitters_)); ++i )
+	for ( int i = 0; i < static_cast< int >( std::size(emitters_) ); ++i )
 	{
 		const char* mode = ( emitters_[i]->GetRenderMode() == ParticleRenderMode::Screen2D ) ? "2D" : "3D";
 		const std::string label = emitters_[i]->GetName() + "  [" + mode + "]";
@@ -536,13 +537,13 @@ void GameScene::DrawPropertiesUi()
 		case SceneItemKind::Model:
 			if ( selection_.index >= 0 && selection_.index < kModelCount )
 			{
-				models_[selection_.index]->DrawUi(selection_.index == 0 ? "Object 1" : "Object 2");
+				models_[selection_.index]->DrawUi(selection_.index == 0 ? "Object 1" : "Object 2", *assets_);
 				modelColliders_[selection_.index].DrawUi();
 			}
 			break;
 
 		case SceneItemKind::Shape:
-			if ( selection_.index >= 0 && selection_.index < static_cast< int >(shapes_.size()) )
+			if ( selection_.index >= 0 && selection_.index < static_cast< int >( shapes_.size() ) )
 			{
 				shapes_[selection_.index]->DrawUi();
 				ImGui::Separator();
@@ -562,7 +563,7 @@ void GameScene::DrawPropertiesUi()
 			break;
 
 		case SceneItemKind::Emitter:
-			if ( selection_.index >= 0 && selection_.index < static_cast< int >(std::size(emitters_)) )
+			if ( selection_.index >= 0 && selection_.index < static_cast< int >( std::size(emitters_) ) )
 			{
 				ParticleEmitter* selected = emitters_[selection_.index];
 				selected->DrawUi();

@@ -1,18 +1,17 @@
 #define NOMINMAX
-#include "ParticleSim.h"
+#include "Engine/Particle/ParticleSim.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <numbers>
 
-#include "Easing.h"
+#include "Engine/Math/Easing.h"
 
 namespace ParticleSim
 {
 	namespace
 	{
-		constexpr float kPi = std::numbers::pi_v<float>;
 
 		float Rand(std::mt19937& rng, float minValue, float maxValue)
 		{
@@ -113,7 +112,7 @@ namespace ParticleSim
 		ShapeSample sample{ { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f } };
 		const Vector3& extent = config.spawnExtent;
 
-		auto normalized = [] (const Vector3& v) -> Vector3
+		auto normalized = [](const Vector3& v) -> Vector3
 		{
 			const float length = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
 			return length < 1e-6f ? Vector3{ 0.0f, 0.0f, 0.0f } : Vector3{ v.x / length, v.y / length, v.z / length };
@@ -191,7 +190,7 @@ namespace ParticleSim
 		ParticleCurve curve, float fadeIn, float t)
 	{
 		Vector4 color;
-		auto blend = [&] (const Vector4& a, const Vector4& b, float u) -> Vector4
+		auto blend = [&](const Vector4& a, const Vector4& b, float u) -> Vector4
 		{
 			return {
 				ApplyCurve(curve, a.x, b.x, u),
@@ -244,7 +243,9 @@ namespace ParticleSim
 		// 1フレームに何回分も遅れていても暴走しないよう、回数に上限を付ける
 		for ( int guard = 0; guard < 64; ++guard )
 		{
-			if ( config.burstCycles > 0 && burstsFired_ >= config.burstCycles )
+			// burstOnce は「回数1回」と同じ(間隔は使わない)
+			const int cycles = config.burstOnce ? 1 : config.burstCycles;
+			if ( cycles > 0 && burstsFired_ >= cycles )
 			{
 				break;
 			}

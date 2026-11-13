@@ -15,42 +15,42 @@
     <Filter Include="VirtualisEngine">
       <UniqueIdentifier>{9196c015-3207-4431-b864-6af9464653aa}</UniqueIdentifier>
     </Filter>
-    <Filter Include="VirtualisEngine\2d">
-      <UniqueIdentifier>{855c566a-0edb-4468-9b6c-8fec052ff287}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="VirtualisEngine\3d">
-      <UniqueIdentifier>{0e524ceb-07f0-4406-bf8e-fd7b885af4c7}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="VirtualisEngine\audio">
-      <UniqueIdentifier>{ea4e7d27-e840-4d6f-8f00-0e448de59275}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="VirtualisEngine\base">
-      <UniqueIdentifier>{67ffb07c-3419-4634-a781-1e5e2bbdf1e3}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="VirtualisEngine\io">
-      <UniqueIdentifier>{d169fb95-726a-4bce-82ed-3045a07ddb62}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="VirtualisEngine\scene">
-      <UniqueIdentifier>{f2d3a02e-27dc-4d9c-a675-aa37fa6f3b22}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="VirtualisEngine\devTools">
-      <UniqueIdentifier>{4123caa7-2cf5-49a8-99fd-ce96ac044385}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="VirtualisEngine\misc">
-      <UniqueIdentifier>{793396b4-8ca8-49df-bfb6-3dba88d7ed32}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="VirtualisEngine\defaultGame">
-      <UniqueIdentifier>{0b7e3fb0-673c-4086-bf13-a5b852bbcf82}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Resources">
       <UniqueIdentifier>{8e23b162-a72a-4aa3-a982-f4ebd45fc994}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Resources\shaders">
-      <UniqueIdentifier>{b95b142e-c7a5-4147-bdac-3f3932ccba64}</UniqueIdentifier>
     </Filter>
     <Filter Include="ヘッダー ファイル">
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Game">
+      <UniqueIdentifier>{e09a13f1-7ab9-4a05-9d5d-c32db8f0c663}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="VirtualisEngine\Audio">
+      <UniqueIdentifier>{4a2b39fb-08c1-4d29-a3e6-b5351157f3bd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resources\shaders">
+      <UniqueIdentifier>{b95b142e-c7a5-4147-bdac-3f3932ccba64}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="VirtualisEngine\Core">
+      <UniqueIdentifier>{425f115c-7c06-44cc-aa1a-be196b908869}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="VirtualisEngine\Graphics">
+      <UniqueIdentifier>{2aff4a4e-4bb2-46f7-afc0-b3e742dd358c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="VirtualisEngine\Math">
+      <UniqueIdentifier>{cf78e2ca-2538-416b-a375-0ef4f4a49c6f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="VirtualisEngine\Particle">
+      <UniqueIdentifier>{fa1f0591-3682-4a15-9ed6-ec9777c5d6e9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="VirtualisEngine\Platform">
+      <UniqueIdentifier>{0a0d912a-e294-406e-9300-76ea9899f6fc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="VirtualisEngine\Shaders">
+      <UniqueIdentifier>{53eb60fe-f64e-45ed-b1e4-a4e3e7b65385}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="VirtualisEngine\Tools">
+      <UniqueIdentifier>{d89b3e72-0676-4542-89e5-d735d02e2757}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -75,113 +75,110 @@
     <ClCompile Include="externals\imgui\imgui_widgets.cpp">
       <Filter>imgui</Filter>
     </ClCompile>
-    <ClCompile Include="GameScene.cpp">
-      <Filter>VirtualisEngine\defaultGame</Filter>
+    <ClCompile Include="Engine\Audio\SoundManager.cpp">
+      <Filter>VirtualisEngine\Audio</Filter>
     </ClCompile>
-    <ClCompile Include="InstancingObject.cpp">
-      <Filter>VirtualisEngine\defaultGame</Filter>
+    <ClCompile Include="Engine\Core\StringUtility.cpp">
+      <Filter>VirtualisEngine\Core</Filter>
     </ClCompile>
-    <ClCompile Include="main.cpp">
-      <Filter>VirtualisEngine\defaultGame</Filter>
+    <ClCompile Include="Engine\Core\Application.cpp">
+      <Filter>VirtualisEngine\Core</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\2d\Sprite.cpp">
-      <Filter>VirtualisEngine\2d</Filter>
+    <ClCompile Include="Engine\Core\CrashHandler.cpp">
+      <Filter>VirtualisEngine\Core</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\3d\AssetCache.cpp">
-      <Filter>VirtualisEngine\3d</Filter>
+    <ClCompile Include="Engine\Core\D3DResourceLeakChecker.cpp">
+      <Filter>VirtualisEngine\Core</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\3d\BlendModes.cpp">
-      <Filter>VirtualisEngine\3d</Filter>
+    <ClCompile Include="Engine\Core\FrameTimer.cpp">
+      <Filter>VirtualisEngine\Core</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\3d\Collider.cpp">
-      <Filter>VirtualisEngine\3d</Filter>
+    <ClCompile Include="Engine\Core\Logger.cpp">
+      <Filter>VirtualisEngine\Core</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\3d\LightBuffer.cpp">
-      <Filter>VirtualisEngine\3d</Filter>
+    <ClCompile Include="Engine\Graphics\AssetCache.cpp">
+      <Filter>VirtualisEngine\Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\3d\ModelLoader.cpp">
-      <Filter>VirtualisEngine\3d</Filter>
+    <ClCompile Include="Engine\Graphics\BlendModes.cpp">
+      <Filter>VirtualisEngine\Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\3d\Particle.cpp">
-      <Filter>VirtualisEngine\3d</Filter>
+    <ClCompile Include="Engine\Graphics\Camera.cpp">
+      <Filter>VirtualisEngine\Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\3d\ParticleConfig.cpp">
-      <Filter>VirtualisEngine\3d</Filter>
+    <ClCompile Include="Engine\Graphics\DebugDraw.cpp">
+      <Filter>VirtualisEngine\Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\3d\ParticleLibrary.cpp">
-      <Filter>VirtualisEngine\3d</Filter>
+    <ClCompile Include="Engine\Graphics\DirectXCommon.cpp">
+      <Filter>VirtualisEngine\Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\audio\SoundManager.cpp">
-      <Filter>VirtualisEngine\audio</Filter>
+    <ClCompile Include="Engine\Graphics\LightBuffer.cpp">
+      <Filter>VirtualisEngine\Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\base\Application.cpp">
-      <Filter>VirtualisEngine\base</Filter>
+    <ClCompile Include="Engine\Graphics\ModelLoader.cpp">
+      <Filter>VirtualisEngine\Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\base\AppWindow.cpp">
-      <Filter>VirtualisEngine\base</Filter>
+    <ClCompile Include="Engine\Graphics\PipelineManager.cpp">
+      <Filter>VirtualisEngine\Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\base\DirectXCommon.cpp">
-      <Filter>VirtualisEngine\base</Filter>
+    <ClCompile Include="Engine\Graphics\RenderObject.cpp">
+      <Filter>VirtualisEngine\Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\base\PipelineManager.cpp">
-      <Filter>VirtualisEngine\base</Filter>
+    <ClCompile Include="Engine\Graphics\ShapeGeometry.cpp">
+      <Filter>VirtualisEngine\Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\base\ResourceObject.cpp">
-      <Filter>VirtualisEngine\base</Filter>
+    <ClCompile Include="Engine\Graphics\ShapeObject.cpp">
+      <Filter>VirtualisEngine\Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\base\ShapeGeometry.cpp">
-      <Filter>VirtualisEngine\base</Filter>
+    <ClCompile Include="Engine\Graphics\Sprite.cpp">
+      <Filter>VirtualisEngine\Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\base\ShapeObject.cpp">
-      <Filter>VirtualisEngine\base</Filter>
+    <ClCompile Include="Engine\Graphics\WindowRenderer.cpp">
+      <Filter>VirtualisEngine\Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\base\WinApp.cpp">
-      <Filter>VirtualisEngine\base</Filter>
+    <ClCompile Include="Engine\Math\Collider.cpp">
+      <Filter>VirtualisEngine\Math</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\base\WindowRenderer.cpp">
-      <Filter>VirtualisEngine\base</Filter>
+    <ClCompile Include="Engine\Math\WorldTransform.cpp">
+      <Filter>VirtualisEngine\Math</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\base\WorldTransform.cpp">
-      <Filter>VirtualisEngine\base</Filter>
+    <ClCompile Include="Engine\Particle\Particle.cpp">
+      <Filter>VirtualisEngine\Particle</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\devTools\CrashHandler.cpp">
-      <Filter>VirtualisEngine\devTools</Filter>
+    <ClCompile Include="Engine\Particle\ParticleConfig.cpp">
+      <Filter>VirtualisEngine\Particle</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\devTools\D3DResourceLeakChecker.cpp">
-      <Filter>VirtualisEngine\devTools</Filter>
+    <ClCompile Include="Engine\Particle\ParticleEffect.cpp">
+      <Filter>VirtualisEngine\Particle</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\devTools\DebugDraw.cpp">
-      <Filter>VirtualisEngine\devTools</Filter>
+    <ClCompile Include="Engine\Particle\ParticleLibrary.cpp">
+      <Filter>VirtualisEngine\Particle</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\devTools\Logger.cpp">
-      <Filter>VirtualisEngine\devTools</Filter>
+    <ClCompile Include="Engine\Particle\ParticleSim.cpp">
+      <Filter>VirtualisEngine\Particle</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\devTools\ParticleEditor.cpp">
-      <Filter>VirtualisEngine\devTools</Filter>
+    <ClCompile Include="Engine\Platform\AppWindow.cpp">
+      <Filter>VirtualisEngine\Platform</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\devTools\StringUtility.cpp">
-      <Filter>VirtualisEngine\devTools</Filter>
+    <ClCompile Include="Engine\Platform\InputManager.cpp">
+      <Filter>VirtualisEngine\Platform</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\io\InputManager.cpp">
-      <Filter>VirtualisEngine\io</Filter>
+    <ClCompile Include="Engine\Platform\WinApp.cpp">
+      <Filter>VirtualisEngine\Platform</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\misc\Easing.cpp">
-      <Filter>VirtualisEngine\misc</Filter>
+    <ClCompile Include="Engine\Tools\ParticleEditor.cpp">
+      <Filter>VirtualisEngine\Tools</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\misc\FrameTimer.cpp">
-      <Filter>VirtualisEngine\misc</Filter>
+    <ClCompile Include="Game\main.cpp">
+      <Filter>Game</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\misc\RenderObject.cpp">
-      <Filter>VirtualisEngine\misc</Filter>
+    <ClCompile Include="Game\GameAssets.cpp">
+      <Filter>Game</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\scene\Camera.cpp">
-      <Filter>VirtualisEngine\scene</Filter>
+    <ClCompile Include="Game\GameScene.cpp">
+      <Filter>Game</Filter>
     </ClCompile>
-    <ClCompile Include="VirtualisEngine\scene\IScene.cpp">
-      <Filter>VirtualisEngine\scene</Filter>
-    </ClCompile>
-    <ClCompile Include="ParticleSim.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="Game\InstancingObject.cpp">
+      <Filter>Game</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -209,110 +206,119 @@
     <ClInclude Include="externals\imgui\imstb_truetype.h">
       <Filter>imgui</Filter>
     </ClInclude>
-    <ClInclude Include="GameScene.h">
-      <Filter>VirtualisEngine\defaultGame</Filter>
+    <ClInclude Include="Engine\Audio\SoundManager.h">
+      <Filter>VirtualisEngine\Audio</Filter>
     </ClInclude>
-    <ClInclude Include="InstancingObject.h">
-      <Filter>VirtualisEngine\defaultGame</Filter>
+    <ClInclude Include="Engine\Core\Application.h">
+      <Filter>VirtualisEngine\Core</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\2d\Sprite.h">
-      <Filter>VirtualisEngine\2d</Filter>
+    <ClInclude Include="Engine\Core\CrashHandler.h">
+      <Filter>VirtualisEngine\Core</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\3d\AssetCache.h">
-      <Filter>VirtualisEngine\3d</Filter>
+    <ClInclude Include="Engine\Core\D3DResourceLeakChecker.h">
+      <Filter>VirtualisEngine\Core</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\3d\BlendModes.h">
-      <Filter>VirtualisEngine\3d</Filter>
+    <ClInclude Include="Engine\Core\FrameTimer.h">
+      <Filter>VirtualisEngine\Core</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\3d\Collider.h">
-      <Filter>VirtualisEngine\3d</Filter>
+    <ClInclude Include="Engine\Core\IScene.h">
+      <Filter>VirtualisEngine\Core</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\3d\LightBuffer.h">
-      <Filter>VirtualisEngine\3d</Filter>
+    <ClInclude Include="Engine\Core\Logger.h">
+      <Filter>VirtualisEngine\Core</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\3d\ModelLoader.h">
-      <Filter>VirtualisEngine\3d</Filter>
+    <ClInclude Include="Engine\Core\StringUtility.h">
+      <Filter>VirtualisEngine\Core</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\3d\Particle.h">
-      <Filter>VirtualisEngine\3d</Filter>
+    <ClInclude Include="Engine\Graphics\AssetCache.h">
+      <Filter>VirtualisEngine\Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\3d\ParticleConfig.h">
-      <Filter>VirtualisEngine\3d</Filter>
+    <ClInclude Include="Engine\Graphics\BlendModes.h">
+      <Filter>VirtualisEngine\Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\3d\ParticleLibrary.h">
-      <Filter>VirtualisEngine\3d</Filter>
+    <ClInclude Include="Engine\Graphics\Camera.h">
+      <Filter>VirtualisEngine\Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\audio\SoundManager.h">
-      <Filter>VirtualisEngine\audio</Filter>
+    <ClInclude Include="Engine\Graphics\DebugDraw.h">
+      <Filter>VirtualisEngine\Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\base\Application.h">
-      <Filter>VirtualisEngine\base</Filter>
+    <ClInclude Include="Engine\Graphics\DirectXCommon.h">
+      <Filter>VirtualisEngine\Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\base\AppWindow.h">
-      <Filter>VirtualisEngine\base</Filter>
+    <ClInclude Include="Engine\Graphics\GpuBuffers.h">
+      <Filter>VirtualisEngine\Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\base\DirectXCommon.h">
-      <Filter>VirtualisEngine\base</Filter>
+    <ClInclude Include="Engine\Graphics\LightBuffer.h">
+      <Filter>VirtualisEngine\Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\base\PipelineManager.h">
-      <Filter>VirtualisEngine\base</Filter>
+    <ClInclude Include="Engine\Graphics\ModelLoader.h">
+      <Filter>VirtualisEngine\Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\base\ResourceObject.h">
-      <Filter>VirtualisEngine\base</Filter>
+    <ClInclude Include="Engine\Graphics\PipelineManager.h">
+      <Filter>VirtualisEngine\Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\base\ShapeGeometry.h">
-      <Filter>VirtualisEngine\base</Filter>
+    <ClInclude Include="Engine\Graphics\RenderObject.h">
+      <Filter>VirtualisEngine\Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\base\ShapeObject.h">
-      <Filter>VirtualisEngine\base</Filter>
+    <ClInclude Include="Engine\Graphics\ResourceObject.h">
+      <Filter>VirtualisEngine\Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\base\WinApp.h">
-      <Filter>VirtualisEngine\base</Filter>
+    <ClInclude Include="Engine\Graphics\ShapeGeometry.h">
+      <Filter>VirtualisEngine\Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\base\WindowRenderer.h">
-      <Filter>VirtualisEngine\base</Filter>
+    <ClInclude Include="Engine\Graphics\ShapeObject.h">
+      <Filter>VirtualisEngine\Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\base\WorldTransform.h">
-      <Filter>VirtualisEngine\base</Filter>
+    <ClInclude Include="Engine\Graphics\Sprite.h">
+      <Filter>VirtualisEngine\Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\devTools\CrashHandler.h">
-      <Filter>VirtualisEngine\devTools</Filter>
+    <ClInclude Include="Engine\Graphics\WindowRenderer.h">
+      <Filter>VirtualisEngine\Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\devTools\D3DResourceLeakChecker.h">
-      <Filter>VirtualisEngine\devTools</Filter>
+    <ClInclude Include="Engine\Math\Collider.h">
+      <Filter>VirtualisEngine\Math</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\devTools\DebugDraw.h">
-      <Filter>VirtualisEngine\devTools</Filter>
+    <ClInclude Include="Engine\Math\Easing.h">
+      <Filter>VirtualisEngine\Math</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\devTools\Logger.h">
-      <Filter>VirtualisEngine\devTools</Filter>
+    <ClInclude Include="Engine\Math\WorldTransform.h">
+      <Filter>VirtualisEngine\Math</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\devTools\ParticleEditor.h">
-      <Filter>VirtualisEngine\devTools</Filter>
+    <ClInclude Include="Engine\Particle\Particle.h">
+      <Filter>VirtualisEngine\Particle</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\devTools\StringUtility.h">
-      <Filter>VirtualisEngine\devTools</Filter>
+    <ClInclude Include="Engine\Particle\ParticleConfig.h">
+      <Filter>VirtualisEngine\Particle</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\io\InputManager.h">
-      <Filter>VirtualisEngine\io</Filter>
+    <ClInclude Include="Engine\Particle\ParticleEffect.h">
+      <Filter>VirtualisEngine\Particle</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\misc\Easing.h">
-      <Filter>VirtualisEngine\misc</Filter>
+    <ClInclude Include="Engine\Particle\ParticleLibrary.h">
+      <Filter>VirtualisEngine\Particle</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\misc\FrameTimer.h">
-      <Filter>VirtualisEngine\misc</Filter>
+    <ClInclude Include="Engine\Particle\ParticleSim.h">
+      <Filter>VirtualisEngine\Particle</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\misc\RenderObject.h">
-      <Filter>VirtualisEngine\misc</Filter>
+    <ClInclude Include="Engine\Platform\AppWindow.h">
+      <Filter>VirtualisEngine\Platform</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\scene\Camera.h">
-      <Filter>VirtualisEngine\scene</Filter>
+    <ClInclude Include="Engine\Platform\InputManager.h">
+      <Filter>VirtualisEngine\Platform</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualisEngine\scene\IScene.h">
-      <Filter>VirtualisEngine\scene</Filter>
+    <ClInclude Include="Engine\Platform\WinApp.h">
+      <Filter>VirtualisEngine\Platform</Filter>
     </ClInclude>
-    <ClInclude Include="ParticleSim.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="Engine\Tools\ParticleEditor.h">
+      <Filter>VirtualisEngine\Tools</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\InstancingObject.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\GameAssets.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\GameScene.h">
+      <Filter>Game</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

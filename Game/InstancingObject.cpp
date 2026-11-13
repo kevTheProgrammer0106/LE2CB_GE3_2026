@@ -1,13 +1,14 @@
 #define NOMINMAX
 #include "InstancingObject.h"
+#include "Engine/Graphics/GpuBuffers.h"
 
 #include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstring>
 
-#include "DirectXCommon.h"
-#include "PipelineManager.h"
+#include "Engine/Graphics/DirectXCommon.h"
+#include "Engine/Graphics/PipelineManager.h"
 
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
@@ -26,11 +27,8 @@ void InstancingObject::Initialize(DirectXCommon& dx)
 	};
 	vertexCount_ = static_cast< UINT >( std::size(vertices) );
 
-	vertexResource_ = dx.CreateBufferResource(sizeof(vertices));
 	VertexData* mapped = nullptr;
-	HRESULT hr = vertexResource_.Get()->Map(0, nullptr, reinterpret_cast< void** >( &mapped ));
-	assert(SUCCEEDED(hr) && mapped != nullptr);
-	( void ) hr;
+	dx.CreateMappedBuffer(vertexResource_, sizeof(vertices), &mapped);
 	std::memcpy(mapped, vertices, sizeof(vertices));
 
 	vbv_.BufferLocation = vertexResource_.Get()->GetGPUVirtualAddress();
@@ -38,16 +36,10 @@ void InstancingObject::Initialize(DirectXCommon& dx)
 	vbv_.StrideInBytes = sizeof(VertexData);
 
 	// 専用マテリアル
-	materialResource_ = dx.CreateBufferResource(sizeof(Material));
-	materialResource_.Get()->Map(0, nullptr, reinterpret_cast< void** >( &materialData_ ));
-	*materialData_ = {};
-	materialData_->color = { 1.0f, 1.0f, 1.0f, 1.0f };
-	materialData_->lightingMode = LightingMode::None;
-	materialData_->uvTransform = MakeIdentityMatrix();
+	materialData_ = CreateMaterialBuffer(dx, materialResource_, LightingMode::None);
 
 	// インスタンスごとの行列バッファ
-	instanceBuffer_ = dx.CreateBufferResource(sizeof(TransformationMatrix) * kNumInstance);
-	instanceBuffer_.Get()->Map(0, nullptr, reinterpret_cast< void** >( &data_ ));
+	dx.CreateMappedBuffer(instanceBuffer_, sizeof(TransformationMatrix) * kNumInstance, &data_);
 
 	for ( uint32_t i = 0; i < kNumInstance; ++i )
 	{

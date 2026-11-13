@@ -2,8 +2,8 @@
 
 #include <random>
 
-#include "ParticleConfig.h"
-#include "WorldTransform.h"
+#include "Engine/Particle/ParticleConfig.h"
+#include "Engine/Math/WorldTransform.h"
 
 //===================================================================
 // パーティクルの計算部分(GPU・ウィンドウに依存しない純粋な関数)。

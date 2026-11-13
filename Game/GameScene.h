@@ -4,17 +4,17 @@
 #include <string>
 #include <vector>
 
-#include "BlendModes.h"
-#include "Camera.h"
-#include "Collider.h"
-#include "DebugDraw.h"
-#include "IScene.h"
+#include "Engine/Graphics/BlendModes.h"
+#include "Engine/Graphics/Camera.h"
+#include "Engine/Math/Collider.h"
+#include "Engine/Graphics/DebugDraw.h"
+#include "Engine/Core/IScene.h"
 #include "InstancingObject.h"
-#include "LightBuffer.h"
-#include "Particle.h"
-#include "RenderObject.h"
-#include "ShapeObject.h"
-#include "Sprite.h"
+#include "Engine/Graphics/LightBuffer.h"
+#include "Engine/Particle/Particle.h"
+#include "Engine/Graphics/RenderObject.h"
+#include "Engine/Graphics/ShapeObject.h"
+#include "Engine/Graphics/Sprite.h"
 
 class DirectXCommon;
 class AssetCache;

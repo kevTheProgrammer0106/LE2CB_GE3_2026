@@ -152,6 +152,37 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Engine\Audio\SoundManager.cpp" />
+    <ClCompile Include="Engine\Core\Application.cpp" />
+    <ClCompile Include="Engine\Core\CrashHandler.cpp" />
+    <ClCompile Include="Engine\Core\D3DResourceLeakChecker.cpp" />
+    <ClCompile Include="Engine\Core\FrameTimer.cpp" />
+    <ClCompile Include="Engine\Core\Logger.cpp" />
+    <ClCompile Include="Engine\Core\StringUtility.cpp" />
+    <ClCompile Include="Engine\Graphics\AssetCache.cpp" />
+    <ClCompile Include="Engine\Graphics\BlendModes.cpp" />
+    <ClCompile Include="Engine\Graphics\Camera.cpp" />
+    <ClCompile Include="Engine\Graphics\DebugDraw.cpp" />
+    <ClCompile Include="Engine\Graphics\DirectXCommon.cpp" />
+    <ClCompile Include="Engine\Graphics\LightBuffer.cpp" />
+    <ClCompile Include="Engine\Graphics\ModelLoader.cpp" />
+    <ClCompile Include="Engine\Graphics\PipelineManager.cpp" />
+    <ClCompile Include="Engine\Graphics\RenderObject.cpp" />
+    <ClCompile Include="Engine\Graphics\ShapeGeometry.cpp" />
+    <ClCompile Include="Engine\Graphics\ShapeObject.cpp" />
+    <ClCompile Include="Engine\Graphics\Sprite.cpp" />
+    <ClCompile Include="Engine\Graphics\WindowRenderer.cpp" />
+    <ClCompile Include="Engine\Math\Collider.cpp" />
+    <ClCompile Include="Engine\Math\WorldTransform.cpp" />
+    <ClCompile Include="Engine\Particle\Particle.cpp" />
+    <ClCompile Include="Engine\Particle\ParticleConfig.cpp" />
+    <ClCompile Include="Engine\Particle\ParticleEffect.cpp" />
+    <ClCompile Include="Engine\Particle\ParticleLibrary.cpp" />
+    <ClCompile Include="Engine\Particle\ParticleSim.cpp" />
+    <ClCompile Include="Engine\Platform\AppWindow.cpp" />
+    <ClCompile Include="Engine\Platform\InputManager.cpp" />
+    <ClCompile Include="Engine\Platform\WinApp.cpp" />
+    <ClCompile Include="Engine\Tools\ParticleEditor.cpp" />
     <ClCompile Include="externals\imgui\imgui.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
@@ -173,47 +204,47 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="externals\imgui\imgui_widgets.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="GameScene.cpp" />
-    <ClCompile Include="InstancingObject.cpp" />
-    <ClCompile Include="main.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
-      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
-    </ClCompile>
-    <ClCompile Include="ParticleSim.cpp" />
-    <ClCompile Include="VirtualisEngine\2d\Sprite.cpp" />
-    <ClCompile Include="VirtualisEngine\3d\AssetCache.cpp" />
-    <ClCompile Include="VirtualisEngine\3d\BlendModes.cpp" />
-    <ClCompile Include="VirtualisEngine\3d\Collider.cpp" />
-    <ClCompile Include="VirtualisEngine\3d\LightBuffer.cpp" />
-    <ClCompile Include="VirtualisEngine\3d\ModelLoader.cpp" />
-    <ClCompile Include="VirtualisEngine\3d\Particle.cpp" />
-    <ClCompile Include="VirtualisEngine\3d\ParticleConfig.cpp" />
-    <ClCompile Include="VirtualisEngine\3d\ParticleLibrary.cpp" />
-    <ClCompile Include="VirtualisEngine\audio\SoundManager.cpp" />
-    <ClCompile Include="VirtualisEngine\base\Application.cpp" />
-    <ClCompile Include="VirtualisEngine\base\AppWindow.cpp" />
-    <ClCompile Include="VirtualisEngine\base\DirectXCommon.cpp" />
-    <ClCompile Include="VirtualisEngine\base\PipelineManager.cpp" />
-    <ClCompile Include="VirtualisEngine\base\ResourceObject.cpp" />
-    <ClCompile Include="VirtualisEngine\base\ShapeGeometry.cpp" />
-    <ClCompile Include="VirtualisEngine\base\ShapeObject.cpp" />
-    <ClCompile Include="VirtualisEngine\base\WinApp.cpp" />
-    <ClCompile Include="VirtualisEngine\base\WindowRenderer.cpp" />
-    <ClCompile Include="VirtualisEngine\base\WorldTransform.cpp" />
-    <ClCompile Include="VirtualisEngine\devTools\CrashHandler.cpp" />
-    <ClCompile Include="VirtualisEngine\devTools\D3DResourceLeakChecker.cpp" />
-    <ClCompile Include="VirtualisEngine\devTools\DebugDraw.cpp" />
-    <ClCompile Include="VirtualisEngine\devTools\Logger.cpp" />
-    <ClCompile Include="VirtualisEngine\devTools\ParticleEditor.cpp" />
-    <ClCompile Include="VirtualisEngine\devTools\StringUtility.cpp" />
-    <ClCompile Include="VirtualisEngine\io\InputManager.cpp" />
-    <ClCompile Include="VirtualisEngine\misc\Easing.cpp" />
-    <ClCompile Include="VirtualisEngine\misc\FrameTimer.cpp" />
-    <ClCompile Include="VirtualisEngine\misc\RenderObject.cpp" />
-    <ClCompile Include="VirtualisEngine\scene\Camera.cpp" />
-    <ClCompile Include="VirtualisEngine\scene\IScene.cpp" />
+    <ClCompile Include="Game\GameAssets.cpp" />
+    <ClCompile Include="Game\GameScene.cpp" />
+    <ClCompile Include="Game\InstancingObject.cpp" />
+    <ClCompile Include="Game\main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Engine\Audio\SoundManager.h" />
+    <ClInclude Include="Engine\Core\Application.h" />
+    <ClInclude Include="Engine\Core\CrashHandler.h" />
+    <ClInclude Include="Engine\Core\D3DResourceLeakChecker.h" />
+    <ClInclude Include="Engine\Core\FrameTimer.h" />
+    <ClInclude Include="Engine\Core\IScene.h" />
+    <ClInclude Include="Engine\Core\Logger.h" />
+    <ClInclude Include="Engine\Core\StringUtility.h" />
+    <ClInclude Include="Engine\Graphics\AssetCache.h" />
+    <ClInclude Include="Engine\Graphics\BlendModes.h" />
+    <ClInclude Include="Engine\Graphics\Camera.h" />
+    <ClInclude Include="Engine\Graphics\DebugDraw.h" />
+    <ClInclude Include="Engine\Graphics\DirectXCommon.h" />
+    <ClInclude Include="Engine\Graphics\GpuBuffers.h" />
+    <ClInclude Include="Engine\Graphics\LightBuffer.h" />
+    <ClInclude Include="Engine\Graphics\ModelLoader.h" />
+    <ClInclude Include="Engine\Graphics\PipelineManager.h" />
+    <ClInclude Include="Engine\Graphics\RenderObject.h" />
+    <ClInclude Include="Engine\Graphics\ResourceObject.h" />
+    <ClInclude Include="Engine\Graphics\ShapeGeometry.h" />
+    <ClInclude Include="Engine\Graphics\ShapeObject.h" />
+    <ClInclude Include="Engine\Graphics\Sprite.h" />
+    <ClInclude Include="Engine\Graphics\WindowRenderer.h" />
+    <ClInclude Include="Engine\Math\Collider.h" />
+    <ClInclude Include="Engine\Math\Easing.h" />
+    <ClInclude Include="Engine\Math\WorldTransform.h" />
+    <ClInclude Include="Engine\Particle\Particle.h" />
+    <ClInclude Include="Engine\Particle\ParticleConfig.h" />
+    <ClInclude Include="Engine\Particle\ParticleEffect.h" />
+    <ClInclude Include="Engine\Particle\ParticleLibrary.h" />
+    <ClInclude Include="Engine\Particle\ParticleSim.h" />
+    <ClInclude Include="Engine\Platform\AppWindow.h" />
+    <ClInclude Include="Engine\Platform\InputManager.h" />
+    <ClInclude Include="Engine\Platform\WinApp.h" />
+    <ClInclude Include="Engine\Tools\ParticleEditor.h" />
     <ClInclude Include="externals\imgui\imconfig.h" />
     <ClInclude Include="externals\imgui\imgui.h" />
     <ClInclude Include="externals\imgui\imgui_impl_dx12.h" />
@@ -222,41 +253,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="externals\imgui\imstb_rectpack.h" />
     <ClInclude Include="externals\imgui\imstb_textedit.h" />
     <ClInclude Include="externals\imgui\imstb_truetype.h" />
-    <ClInclude Include="GameScene.h" />
-    <ClInclude Include="InstancingObject.h" />
-    <ClInclude Include="ParticleSim.h" />
-    <ClInclude Include="VirtualisEngine\2d\Sprite.h" />
-    <ClInclude Include="VirtualisEngine\3d\AssetCache.h" />
-    <ClInclude Include="VirtualisEngine\3d\BlendModes.h" />
-    <ClInclude Include="VirtualisEngine\3d\Collider.h" />
-    <ClInclude Include="VirtualisEngine\3d\LightBuffer.h" />
-    <ClInclude Include="VirtualisEngine\3d\ModelLoader.h" />
-    <ClInclude Include="VirtualisEngine\3d\Particle.h" />
-    <ClInclude Include="VirtualisEngine\3d\ParticleConfig.h" />
-    <ClInclude Include="VirtualisEngine\3d\ParticleLibrary.h" />
-    <ClInclude Include="VirtualisEngine\audio\SoundManager.h" />
-    <ClInclude Include="VirtualisEngine\base\Application.h" />
-    <ClInclude Include="VirtualisEngine\base\AppWindow.h" />
-    <ClInclude Include="VirtualisEngine\base\DirectXCommon.h" />
-    <ClInclude Include="VirtualisEngine\base\PipelineManager.h" />
-    <ClInclude Include="VirtualisEngine\base\ResourceObject.h" />
-    <ClInclude Include="VirtualisEngine\base\ShapeGeometry.h" />
-    <ClInclude Include="VirtualisEngine\base\ShapeObject.h" />
-    <ClInclude Include="VirtualisEngine\base\WinApp.h" />
-    <ClInclude Include="VirtualisEngine\base\WindowRenderer.h" />
-    <ClInclude Include="VirtualisEngine\base\WorldTransform.h" />
-    <ClInclude Include="VirtualisEngine\devTools\CrashHandler.h" />
-    <ClInclude Include="VirtualisEngine\devTools\D3DResourceLeakChecker.h" />
-    <ClInclude Include="VirtualisEngine\devTools\DebugDraw.h" />
-    <ClInclude Include="VirtualisEngine\devTools\Logger.h" />
-    <ClInclude Include="VirtualisEngine\devTools\ParticleEditor.h" />
-    <ClInclude Include="VirtualisEngine\devTools\StringUtility.h" />
-    <ClInclude Include="VirtualisEngine\io\InputManager.h" />
-    <ClInclude Include="VirtualisEngine\misc\Easing.h" />
-    <ClInclude Include="VirtualisEngine\misc\FrameTimer.h" />
-    <ClInclude Include="VirtualisEngine\misc\RenderObject.h" />
-    <ClInclude Include="VirtualisEngine\scene\Camera.h" />
-    <ClInclude Include="VirtualisEngine\scene\IScene.h" />
+    <ClInclude Include="Game\GameAssets.h" />
+    <ClInclude Include="Game\GameScene.h" />
+    <ClInclude Include="Game\InstancingObject.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt" />
