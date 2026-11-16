@@ -94,6 +94,14 @@ ParticleEmitter* GameScene::AddEmitter(ParticleRenderMode mode, const std::strin
 {
 	const bool is2D = ( mode == ParticleRenderMode::Screen2D );
 
+	// エミッタ1つにつきSRVスロットが最低1つ要る。足りなければ追加しない(assertで落とさない)
+	if ( dx_->GetFreeSrvCount() < 1 )
+	{
+		Logger::Log("[GameScene] SRVスロットが足りないため、エミッタを追加できません。\n");
+		return nullptr;
+	}
+
+
 	// ライブラリ上の名前は一意でなければならない(同じ名前だと同じ設定を共有してしまう)
 	std::string emitterName = name;
 	if ( emitterName.empty() )
@@ -124,6 +132,7 @@ void GameScene::DeleteShape(int index)
 	// 待機で終わっているので、ここでバッファを解放してよい
 	shapes_.erase(shapes_.begin() + index);
 	selection_ = {};
+	hover_ = {}; // 番号がずれるので、カーソルが乗っている物の記憶も捨てる
 }
 
 void GameScene::Update(float deltaTime, InputManager& input, float clientWidth, float clientHeight)
@@ -325,8 +334,8 @@ SceneSelection GameScene::PickAt(const Vector2& cursor, float clientWidth, float
 	{
 		const float x0 = sprite_.transform.translate.x;
 		const float y0 = sprite_.transform.translate.y;
-		const float x1 = x0 + 640.0f * sprite_.transform.scale.x;
-		const float y1 = y0 + 360.0f * sprite_.transform.scale.y;
+		const float x1 = x0 + sprite_.size.x * sprite_.transform.scale.x;
+		const float y1 = y0 + sprite_.size.y * sprite_.transform.scale.y;
 		if ( cursor.x >= std::min(x0, x1) && cursor.x <= std::max(x0, x1) && cursor.y >= std::min(y0, y1) && cursor.y <= std::max(y0, y1) )
 		{
 			return { SceneItemKind::Sprite, 0 };
@@ -504,6 +513,7 @@ void GameScene::DrawUi()
 	{
 		modelBlendMode_ = static_cast< ParticleBlendMode >( blendIndex );
 	}
+	ImGui::Text("SRV slots free: %d", static_cast< int >( dx_->GetFreeSrvCount() ));
 
 	ImGui::End();
 
@@ -607,13 +617,18 @@ void GameScene::DrawHierarchyUi()
 		ImGui::Separator();
 		if ( ImGui::MenuItem("Particle 3D") )
 		{
-			AddEmitter(ParticleRenderMode::Billboard3D);
-			selection_ = { SceneItemKind::Emitter, static_cast< int >( emitters_.size() ) - 1 };
+			// 追加できたとき(nullptrでないとき)だけ選択を移す
+			if ( AddEmitter(ParticleRenderMode::Billboard3D) != nullptr )
+			{
+				selection_ = { SceneItemKind::Emitter, static_cast< int >( emitters_.size() ) - 1 };
+			}
 		}
 		if ( ImGui::MenuItem("Particle 2D") )
 		{
-			AddEmitter(ParticleRenderMode::Screen2D);
-			selection_ = { SceneItemKind::Emitter, static_cast< int >( emitters_.size() ) - 1 };
+			if ( AddEmitter(ParticleRenderMode::Screen2D) != nullptr )
+			{
+				selection_ = { SceneItemKind::Emitter, static_cast< int >( emitters_.size() ) - 1 };
+			}
 		}
 		ImGui::EndPopup();
 	}

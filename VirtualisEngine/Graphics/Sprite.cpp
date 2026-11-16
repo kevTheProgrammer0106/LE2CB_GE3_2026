@@ -24,6 +24,7 @@ void Sprite::Initialize(DirectXCommon& dx, D3D12_GPU_DESCRIPTOR_HANDLE textureSr
 	vbv_.BufferLocation = vertexResource_.Get()->GetGPUVirtualAddress();
 	vbv_.SizeInBytes = sizeof(VertexData) * kVertexCount;
 	vbv_.StrideInBytes = sizeof(VertexData);
+	mappedVertices_ = vertices;
 
 	vertices[0] = { { 0.0f, 360.0f, 0.0f, 1.0f }, { 0.0f, 1.0f }, { 0.0f, 0.0f, -1.0f } }; // 左下
 	vertices[1] = { { 0.0f, 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f }, { 0.0f, 0.0f, -1.0f } }; // 左上
@@ -47,6 +48,12 @@ void Sprite::Initialize(DirectXCommon& dx, D3D12_GPU_DESCRIPTOR_HANDLE textureSr
 
 void Sprite::Update(float clientWidth, float clientHeight)
 {
+	// 大きさ(size)をUIから変えられるよう、毎フレーム頂点を書き直す(4頂点だけなので軽い)
+	mappedVertices_[0].position = { 0.0f, size.y, 0.0f, 1.0f };   // 左下
+	mappedVertices_[1].position = { 0.0f, 0.0f, 0.0f, 1.0f };     // 左上
+	mappedVertices_[2].position = { size.x, 0.0f, 0.0f, 1.0f };   // 右上
+	mappedVertices_[3].position = { size.x, size.y, 0.0f, 1.0f }; // 右下
+
 	// スプライトはカメラの影響を受けないので、ビュー行列は単位行列、射影は正射影
 	Matrix4x4 world = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
 	Matrix4x4 view = MakeIdentityMatrix();
@@ -97,6 +104,8 @@ void Sprite::DrawUi()
 		ImGui::DragFloat2("UV Translate", &uvTransform.translate.x, 0.1f, -10.0f, 10.0f);
 		ImGui::DragFloat2("UV Scale", &uvTransform.scale.x, 0.1f, -10.0f, 10.0f);
 		ImGui::SliderAngle("UV Rotate", &uvTransform.rotate.z);
+		ImGui::DragFloat2("Sprite Size (px)", &size.x, 1.0f, 1.0f, 8192.0f);
+		ImGui::SliderFloat("Alpha Cutoff", &materialData_->alphaCutoff, 0.0f, 1.0f);
 	}
 #endif
 }

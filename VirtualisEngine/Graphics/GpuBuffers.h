@@ -19,6 +19,7 @@ Material* CreateMaterialBuffer(const DirectXCommon& dx, ResourceT& out, Lighting
 	*material = {};
 	material->color = { 1.0f, 1.0f, 1.0f, 1.0f };
 	material->lightingMode = lightingMode;
+	material->alphaCutoff = 0.5f; // これまでシェーダーに直書きしていた値と同じ(既定の見た目は変わらない)
 	material->uvTransform = MakeIdentityMatrix();
 	return material;
 }

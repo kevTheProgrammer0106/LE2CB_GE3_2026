@@ -29,7 +29,7 @@
 class DirectXCommon
 {
 public:
-	// 全ウィンドウのImGuiフォント・テクスチャで共有するSRVヒープの大きさ
+	// SRVヒープの既定の大きさ。ApplicationDesc::srvHeapSize で変えられる
 	static constexpr uint32_t kSrvHeapSize = 128;
 
 	DirectXCommon() = default;
@@ -92,6 +92,16 @@ public:
 	/// SRVヒープの空き番号を1つ確保して返す。
 	/// ImGuiのフォント用スロットも、ウィンドウごとにここから確保する(共有すると上書きし合うため)
 	uint32_t AllocateSrvIndex();
+	/// SRVヒープの大きさを決める(Initialize より前に呼ぶ)
+	void SetSrvHeapSize(uint32_t size)
+	{
+		srvHeapSize_ = size;
+	}
+	/// SRVの空きスロット数(エミッタ・子レイヤーを足せるかの確認に使う)
+	uint32_t GetFreeSrvCount() const
+	{
+		return srvHeapSize_ - nextSrvIndex;
+	}
 
 	//--------------------------------------------------
 	// リソース生成ヘルパー
@@ -153,6 +163,7 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap;
 	uint32_t descriptorSizeSRV = 0;
 	uint32_t nextSrvIndex = 0; // 予約スロットは無い。ImGuiも含めてAllocateSrvIndex()で確保する
+	uint32_t srvHeapSize_ = kSrvHeapSize; // 実際のヒープの大きさ
 
 	// DXC
 	Microsoft::WRL::ComPtr<IDxcUtils> dxcUtils;

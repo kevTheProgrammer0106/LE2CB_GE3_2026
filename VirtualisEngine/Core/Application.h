@@ -36,7 +36,9 @@ struct ApplicationDesc
 	/// 目標FPS。0にすると固定しない(垂直同期=モニタのリフレッシュレートに任せる)
 	uint32_t targetFps = 60;
 	/// エンジンのシェーダー(*.hlsl)があるフォルダ。exeを動かす作業フォルダからの相対パス
-	std::wstring shaderDirectory = L"resources/GraphicShaders/";
+	std::wstring shaderDirectory = L"resources/Shaders/";
+	/// SRVヒープの大きさ(テクスチャ・エミッタ・ImGuiフォントで共有)。パーティクルを多く置くなら増やす
+	uint32_t srvHeapSize = DirectXCommon::kSrvHeapSize;
 };
 
 /// <summary>

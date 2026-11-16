@@ -39,8 +39,8 @@ void ParticleEffect::Sanitize()
 		ParticleLayer& layer = layers[i];
 		layer.config.Sanitize();
 
-		// 名前は1行の文字列(ファイルに書くので改行を除く)
-		layer.name.erase(std::remove_if(layer.name.begin(), layer.name.end(), [](char c) { return c == '\n' || c == '\r'; }), layer.name.end());
+		// 名前は1行の文字列(ファイルに書くので改行と、コメント開始の # を除く)
+		layer.name.erase(std::remove_if(layer.name.begin(), layer.name.end(), [](char c) { return c == '\n' || c == '\r' || c == '#'; }), layer.name.end());
 		if ( layer.name.empty() )
 		{
 			layer.name = ( i == 0 ) ? "Parent" : "Layer";

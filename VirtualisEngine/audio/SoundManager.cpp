@@ -88,18 +88,36 @@ SoundData SoundManager::LoadWave(const std::string& filePath)
 		return sound;
 	}
 	file.read(reinterpret_cast< char* >( &sound.format ), fmtHeader.size);
+	if ( fmtHeader.size & 1 )
+	{
+		file.seekg(1, std::ios_base::cur); // 詰め物の1バイト
+	}
+
+	// PCM以外(ADPCMなど)は再生できないので、ここで弾く
+	if ( !file || sound.format.wFormatTag != WAVE_FORMAT_PCM )
+	{
+		Logger::Log("[SoundManager] PCM以外のWAVは未対応です: " + filePath + "\n");
+		return SoundData{};
+	}
 
 	// dataチャンクまで読み進める(JUNKなど、関係ないチャンクは読み飛ばす)
 	ChunkHeader dataHeader{};
 	while ( file.read(reinterpret_cast< char* >( &dataHeader ), sizeof(dataHeader)) )
 	{
+		if ( dataHeader.size < 0 )
+		{
+			break; // 壊れたファイル
+		}
 		if ( std::strncmp(dataHeader.id, "data", 4) == 0 )
 		{
 			sound.samples.resize(static_cast< size_t >( dataHeader.size ));
 			file.read(reinterpret_cast< char* >( sound.samples.data() ), dataHeader.size);
+			// ファイルが途中で終わっていたら、読めた分だけにする
+			sound.samples.resize(static_cast< size_t >( file.gcount() ));
 			return sound;
 		}
-		file.seekg(dataHeader.size, std::ios_base::cur);
+		// RIFFのチャンクは偶数バイト境界。奇数サイズなら詰め物の1バイトも読み飛ばす
+		file.seekg(dataHeader.size + ( dataHeader.size & 1 ), std::ios_base::cur);
 	}
 
 	Logger::Log("[SoundManager] No data chunk: " + filePath + "\n");

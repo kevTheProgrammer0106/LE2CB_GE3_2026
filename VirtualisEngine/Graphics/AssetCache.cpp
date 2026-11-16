@@ -116,7 +116,14 @@ const TextureResource& AssetCache::AcquireTexture(DirectXCommon& dx, const std::
 	auto it = texturesByPath_.find(path);
 	if ( it == texturesByPath_.end() )
 	{
-		it = texturesByPath_.emplace(path, CreateTextureWithSrv(dx, DirectXCommon::LoadTexture(path))).first;
+		const DirectX::ScratchImage image = DirectXCommon::LoadTexture(path);
+		if ( image.GetImageCount() == 0 )
+		{
+			// 読めなかったときは白テクスチャで代用する(キャッシュはしない=ファイルを直せば次回読める)
+			Logger::Log(std::format("[AssetCache] WARNING: texture file \"{}\" could not be loaded. Using the white texture instead.\n", path));
+			return GetWhiteTexture();
+		}
+		it = texturesByPath_.emplace(path, CreateTextureWithSrv(dx, image)).first;
 	}
 	return it->second;
 }

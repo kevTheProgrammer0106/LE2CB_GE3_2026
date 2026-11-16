@@ -71,6 +71,7 @@ void RenderObject::DrawUi(const char* label, const AssetCache& assets)
 	ImGui::SliderAngle("UV Rotate", &uvTransform.rotate.z);
 
 	ImGui::ColorEdit4("Color", &materialData_->color.x);
+	ImGui::SliderFloat("Alpha Cutoff", &materialData_->alphaCutoff, 0.0f, 1.0f);
 
 	int currentMode = static_cast< int >( materialData_->lightingMode );
 	const char* items[] = { "None", "Half Lambert", "Lambert" };

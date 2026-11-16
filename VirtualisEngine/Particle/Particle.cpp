@@ -167,15 +167,24 @@ void ParticleEmitter::SyncLayers()
 		return; // 子は自分の木を持たない
 	}
 
-	const size_t childCount = effect_.layers.size() - 1;
+	// 欲しい子の数(レイヤー数 - 親)
+	const size_t wantedChildCount = effect_.layers.size() - 1;
 
-	// 足りない子エミッタを作る(SRVスロットは解放できないので、作ったら使い回す)
-	while ( children_.size() < childCount )
+	// 足りない子エミッタを作る(SRVスロットは解放できないので、作ったら使い回す)。
+	// SRVの空きが無いときは作れる分だけで止める(assertで落とさない)
+	while ( children_.size() < wantedChildCount && dx_->GetFreeSrvCount() > 0 )
 	{
 		auto child = std::make_unique<ParticleEmitter>();
 		child->Initialize(*dx_);
 		child->isLayerChild_ = true;
 		children_.push_back(std::move(child));
+	}
+
+	// 実際に使える子の数(SRVが足りなければ wantedChildCount より少ない)
+	const size_t childCount = (std::min)(wantedChildCount, children_.size());
+	if ( childCount < wantedChildCount )
+	{
+		Logger::Log("[ParticleEmitter] WARNING: SRVスロットが足りないため、一部の子レイヤーは発生しません。ApplicationDesc::srvHeapSize を増やしてください。\n");
 	}
 
 	// 使わなくなった子は粒を消して止める
@@ -304,6 +313,11 @@ void ParticleEmitter::UpdateTimeline(float deltaTime)
 			emitting_ = active;
 		} else
 		{
+			// SRV不足で子エミッタを作れなかったレイヤーは、位置の計算だけして発生はしない
+			if ( i - 1 >= activeChildCount_ )
+			{
+				continue;
+			}
 			ParticleEmitter& child = *children_[i - 1];
 			if ( started )
 			{

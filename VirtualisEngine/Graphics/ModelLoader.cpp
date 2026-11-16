@@ -3,11 +3,23 @@
 #include <algorithm>
 #include <fstream>
 #include <sstream>
+#include <string>
 
 #include "VirtualisEngine/Core/Logger.h"
 
 namespace
 {
+		// 数字として読めない文字列は 0(未指定)として扱う。std::stoi の例外でアプリが落ちないようにする
+	int ParseIndexSafe(const std::string& text)
+	{
+		try
+		{
+			return std::stoi(text);
+		} catch ( const std::exception& )
+		{
+			return 0;
+		}
+	}
 	// objの"f"行の1トークン("position/texcoord/normal")を分解して取得する。
 	// - texcoordやnormalが省略されている("v//vn"や"v"だけ)場合は0(未指定)を返す
 	// - 負のindex(相対index。「最後に追加された要素から数える」形式)にも対応する
@@ -27,15 +39,15 @@ namespace
 
 		if ( std::getline(v, idx, '/') && !idx.empty() )
 		{
-			result.position = std::stoi(idx);
+			result.position = ParseIndexSafe(idx);
 		}
 		if ( std::getline(v, idx, '/') && !idx.empty() )
 		{
-			result.texcoord = std::stoi(idx);
+			result.texcoord = ParseIndexSafe(idx);
 		}
 		if ( std::getline(v, idx, '/') && !idx.empty() )
 		{
-			result.normal = std::stoi(idx);
+			result.normal = ParseIndexSafe(idx);
 		}
 		return result;
 	}

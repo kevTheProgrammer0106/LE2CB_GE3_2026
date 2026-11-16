@@ -21,6 +21,10 @@ LONG WINAPI CrashHandler::ExportDump(EXCEPTION_POINTERS* exception)
 	StringCchPrintfW(filePath, MAX_PATH, L"./Dumps/CrashDump_%04d%02d%02d_%02d%02d%02d.dmp",
 		time.wYear, time.wMonth, time.wDay, time.wHour, time.wMinute, time.wSecond);
 	HANDLE dumpFileHandle = CreateFile(filePath, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_WRITE | FILE_SHARE_READ, 0, CREATE_ALWAYS, 0, 0);
+	if ( dumpFileHandle == INVALID_HANDLE_VALUE )
+	{
+		return EXCEPTION_EXECUTE_HANDLER; // ファイルを作れなくても、そのまま終了処理へ
+	}
 	// processId(このexeのId)とクラッシュ(例外)の発生したthreadを取得
 	DWORD processId = GetCurrentProcessId();
 	DWORD threadId = GetCurrentThreadId();
@@ -31,6 +35,7 @@ LONG WINAPI CrashHandler::ExportDump(EXCEPTION_POINTERS* exception)
 	minidumpInformation.ClientPointers = TRUE;
 	// Dumpを出力。MiniDumpNormalは最低限の情報を出力するフラグ
 	MiniDumpWriteDump(GetCurrentProcess(), processId, dumpFileHandle, MiniDumpNormal, &minidumpInformation, nullptr, nullptr);
+	CloseHandle(dumpFileHandle); // 書き込みを確定させる
 	// 他に関連づけられているSEH例外ハンドラがあれば実行。通常はプロセスを終了する
 	return EXCEPTION_EXECUTE_HANDLER;
 }

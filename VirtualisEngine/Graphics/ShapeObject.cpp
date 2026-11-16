@@ -20,9 +20,10 @@ namespace
 void ShapeObject::Initialize(DirectXCommon& dx, ShapeType type, const std::string& objectName, bool flat)
 {
 	type_ = type;
+	flat_ = flat && ShapeFactory::HasFlatVersion(type); // 2D版が無い図形では無視する
 	name = objectName;
 	segments_ = ShapeFactory::DefaultSegments(type);
-	geometry_ = ShapeFactory::Create(type_, segments_);
+	geometry_ = ShapeFactory::Create(type_, segments_, flat_); // 2D版ならQuad / Circleの頂点を作る
 	partTransforms.assign(geometry_.parts.size(), kIdentityTransform);
 
 	// 頂点バッファ: 分割数を最大にしたときの大きさで1回だけ確保する(描画中に作り直さない)

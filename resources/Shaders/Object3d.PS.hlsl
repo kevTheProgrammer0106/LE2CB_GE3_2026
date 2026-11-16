@@ -18,19 +18,23 @@ struct PixelShaderOutput
 PixelShaderOutput main(VertexShaderOutput input)
 {
     PixelShaderOutput output;
+    
+      // ライトの向きは UI で自由に入れられるので、ここで正規化する(長さ0なら真上から)
+    float32_t3 toLight = -gDirectionalLight.direction;
+    toLight = (dot(toLight, toLight) > 1e-8f) ? normalize(toLight) : float32_t3(0.0f, 1.0f, 0.0f);
     float4 transformedUV = mul(float32_t4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
     
     float32_t4 textureColor = gTexture.Sample(gSampler, transformedUV.xy);
     
-    // textureのa値が0.5以下と0のときにPixelを破棄する
-    if (textureColor.a == 0.0 || textureColor.a <= 0.5)
+    // textureのa値がしきい値(Material::alphaCutoff)以下のときにPixelを破棄する
+    if (textureColor.a <= gMaterial.alphaCutoff)
     {
         discard;
     }
     if (gMaterial.lightingMode == LIGHTING_HALF_LAMBERT) // Lightningする場合
     {   
         //half lambert
-        float NdotL = dot(normalize(input.normal), -gDirectionalLight.direction);
+        float NdotL = dot(normalize(input.normal), toLight);
         float cos = pow(NdotL * 0.5f + 0.5f, 2.0f);
         output.color.rgb = gMaterial.color.rgb * textureColor.rgb * gDirectionalLight.color.rgb * cos * gDirectionalLight.intensity;
         output.color.a = gMaterial.color.a * textureColor.a;
@@ -38,7 +42,7 @@ PixelShaderOutput main(VertexShaderOutput input)
     else if (gMaterial.lightingMode == LIGHTING_LAMBERT)
     {
         //lambert reflectance
-        float cosdotN = saturate(dot(normalize(input.normal), -gDirectionalLight.direction));
+        float cosdotN = saturate(dot(normalize(input.normal), toLight));
         output.color.rgb = gMaterial.color.rgb * textureColor.rgb * gDirectionalLight.color.rgb * cosdotN * gDirectionalLight.intensity;
         output.color.a = gMaterial.color.a * textureColor.a;
     }

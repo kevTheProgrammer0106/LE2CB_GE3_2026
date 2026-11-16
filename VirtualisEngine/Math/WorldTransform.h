@@ -6,6 +6,8 @@
 #include <vector>
 #include <numbers>
 #include <string>
+#include <cstddef>
+
 
 // 角度の定数(円周率・度⇔ラジアン)。どこでもこれを使う
 inline constexpr float kPi = std::numbers::pi_v<float>;
@@ -113,10 +115,21 @@ enum class LightingMode : int32_t
 
 struct Material {
 	Vector4 color;
+	float alphaCutoff; // この値以下のアルファのピクセルは捨てる(0なら完全に透明な物だけ捨てる)
 	LightingMode lightingMode;
-	float padding[3]; // パディングを追加して16バイト境界に揃える
+	float padding[2]; // パディングを追加して16バイト境界に揃える
 	Matrix4x4 uvTransform;
 };
+
+static_assert( sizeof(Vector4) == 16 );
+static_assert( sizeof(Matrix4x4) == 64 );
+static_assert( sizeof(Material) == 96 );
+
+static_assert( offsetof(Material, color) == 0 );
+static_assert( offsetof(Material, alphaCutoff) == 16 );
+static_assert( offsetof(Material, lightingMode) == 20 );
+static_assert( offsetof(Material, padding) == 24 );
+static_assert( offsetof(Material, uvTransform) == 32 );
 
 struct TransformData
 {

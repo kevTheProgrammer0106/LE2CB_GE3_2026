@@ -10,6 +10,7 @@ void Application::Initialize(HINSTANCE instance, const ApplicationDesc& desc)
 	instance_ = instance;
 
 	dx_.SetShaderDirectory(desc.shaderDirectory);
+	dx_.SetSrvHeapSize(desc.srvHeapSize); // Initialize より前に決める
 	dx_.Initialize();
 
 	// メインウィンドウ: 閉じたらアプリ終了(desc 側で変えられる)

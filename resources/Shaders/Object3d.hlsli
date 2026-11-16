@@ -9,8 +9,9 @@ struct TransformationMatrix
 struct Material
 {
     float32_t4 color;
+    float alphaCutoff; // C++側の alphaCutoff と対応(この値以下のアルファは discard)
     int lightingMode;
-    float32_t3 padding; // 明示的なパディング。C++側のfloat padding[3]と対応させる
+    float32_t2 padding; // 明示的なパディング。C++側のfloat padding[2]と対応させる
     float32_t4x4 uvTransform;
 };
 

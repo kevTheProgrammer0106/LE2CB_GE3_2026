@@ -6,6 +6,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstring>
+#include <string>
 
 #include "VirtualisEngine/Graphics/DirectXCommon.h"
 #include "VirtualisEngine/Graphics/PipelineManager.h"
@@ -77,8 +78,7 @@ void InstancingObject::Update(const Matrix4x4& viewProjection)
 }
 
 void InstancingObject::Draw(ID3D12GraphicsCommandList* commandList, const PipelineManager& pipelines,
-	D3D12_GPU_DESCRIPTOR_HANDLE textureSrv, D3D12_GPU_VIRTUAL_ADDRESS lightAddress) const
-{
+	D3D12_GPU_DESCRIPTOR_HANDLE textureSrv, D3D12_GPU_VIRTUAL_ADDRESS lightAddress) const{
 	if ( !enabled )
 	{
 		return;
@@ -120,5 +120,25 @@ void InstancingObject::DrawUi()
 {
 #ifdef USE_IMGUI
 	ImGui::Checkbox("Instancing Demo", &enabled);
+	if ( !enabled )
+	{
+		return;
+	}
+
+	// 各インスタンスの位置・回転・拡大(Update() が毎フレーム行列に反映する)
+	for ( uint32_t i = 0; i < kNumInstance; ++i )
+	{
+		ImGui::PushID(static_cast< int >(i));
+		const std::string label = "Instance " + std::to_string(i);
+		if ( ImGui::TreeNode(label.c_str()) )
+		{
+			TransformData& t = transforms_[i];
+			ImGui::DragFloat3("Scale", &t.scale.x, 0.05f);
+			ImGui::DragFloat3("Rotate", &t.rotate.x, 0.02f);
+			ImGui::DragFloat3("Translate", &t.translate.x, 0.05f);
+			ImGui::TreePop();
+		}
+		ImGui::PopID();
+	}
 #endif
 }

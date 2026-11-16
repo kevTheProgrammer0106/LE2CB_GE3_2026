@@ -213,7 +213,10 @@ void DirectXCommon::FlushUploadCommands()
 void DirectXCommon::InitializeDescriptorHeap()
 {
 	// SRVはShader内で触るものなので、ShaderVisibleはtrue
-	srvDescriptorHeap = CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, kSrvHeapSize, true);
+	// InitializeDescriptorHeap() — kSrvHeapSize を srvHeapSize_ に
+	srvDescriptorHeap = CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, srvHeapSize_, true);
+	// AllocateSrvIndex()
+	assert(nextSrvIndex < srvHeapSize_ && "SRV heap is full. Increase ApplicationDesc::srvHeapSize.");
 	// ディスクリプタのサイズは一度だけ取得してキャッシュする
 	descriptorSizeSRV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 }
@@ -365,7 +368,12 @@ DirectX::ScratchImage DirectXCommon::LoadTexture(const std::string& filePath)
 	const std::wstring filePathW = StringUtility::ConvertString(filePath);
 
 	HRESULT hr = DirectX::LoadFromWICFile(filePathW.c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
-	assert(SUCCEEDED(hr));
+	if ( FAILED(hr) )
+	{
+		// 落とさずに空の画像を返す。呼び出し側(AssetCache)が白テクスチャで代用する
+		Logger::Log(std::format("[DirectXCommon] 画像を読み込めません: {}\n", filePath));
+		return DirectX::ScratchImage{};
+	}
 
 	DirectX::ScratchImage mipImages;
 	hr = DirectX::GenerateMipMaps(

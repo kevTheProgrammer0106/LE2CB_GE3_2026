@@ -23,6 +23,7 @@ public:
 	bool enabled = false;
 	TransformData transform{ { 1.0f, 1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f, 0.0f } };
 	TransformData uvTransform{ { 1.0f, 1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f, 0.0f } };
+	Vector2 size{ 640.0f, 360.0f }; // 画面上の大きさ(ピクセル)。GameScene::PickAt もこの値で当たり判定する
 
 private:
 	ResourceObject vertexResource_;
@@ -34,4 +35,6 @@ private:
 	Material* materialData_ = nullptr;
 	TransformationMatrix* transformData_ = nullptr;
 	D3D12_GPU_DESCRIPTOR_HANDLE textureSrv_{};
+
+	VertexData* mappedVertices_ = nullptr; // 大きさを変えたとき頂点を書き直すため
 };
