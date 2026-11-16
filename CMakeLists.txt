@@ -12,5 +12,5 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # 外部ライブラリ(imgui / DirectXTex)を置いたフォルダ。ソースの #include "externals/imgui/imgui.h" はこの親フォルダ基準
 set(ENGINE_EXTERNALS_DIR "${CMAKE_SOURCE_DIR}/externals" CACHE PATH "Folder that contains imgui/ and DirectXTex/")
 
-add_subdirectory(Engine)
+add_subdirectory(VirtualisEngine)
 add_subdirectory(Game)

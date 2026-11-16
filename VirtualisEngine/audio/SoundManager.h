@@ -44,7 +44,14 @@ public:
 	void Shutdown();
 
 	/// .wav(PCM)を読み込む。読めなかったら IsValid() が false の SoundData を返す
-	static SoundData LoadWave(const std::string& filePath);
+	static SoundData LoadSoundWav(const std::string& filePath);
+	/// <summary>
+	/// 音声ファイル読み込み
+	/// <summary>
+	/// <param name="fileName">音声ファイル名</param>
+	// Media Foundationで読み込んだ音声をPCMに変換して返す
+	SoundData LoadSoundMp3(const std::string& fileName);
+
 
 	/// 再生する。同じ音を重ねて鳴らせる(1回ごとに新しいボイスを作る)。
 	/// 戻り値は Stop() に渡すためのボイス。ループしない音は、鳴り終わっても Stop() で片付けること
@@ -55,4 +62,6 @@ public:
 private:
 	Microsoft::WRL::ComPtr<IXAudio2> xAudio2_;
 	IXAudio2MasteringVoice* masteringVoice_ = nullptr;
+
+	bool mfStarted_ = false;
 };
