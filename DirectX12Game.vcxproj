@@ -107,7 +107,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <AdditionalIncludeDirectories>$(ProjectDir)externals\DirectXTex;$(ProjectDir)VirtualisEngine\Audio;$(ProjectDir)VirtualisEngine\Core;$(ProjectDir)VirtualisEngine\Graphics;$(ProjectDir)VirtualisEngine\Math;$(ProjectDir)VirtualisEngine\Particle;$(ProjectDir)VirtualisEngine\Platform;$(ProjectDir)VirtualisEngine\Tools;$(ProjectDir)resources;$(ProjectDir);$(ProjectDir)resources\particles;$(ProjectDir)resources\shaders;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
