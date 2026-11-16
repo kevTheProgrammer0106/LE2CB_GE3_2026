@@ -2,10 +2,10 @@
 #include "GameScene.h"
 #include "GameAssets.h"
 
-#include "Engine/Graphics/AssetCache.h"
-#include "Engine/Graphics/DirectXCommon.h"
-#include "Engine/Platform/InputManager.h"
-#include "Engine/Graphics/PipelineManager.h"
+#include "VirtualisEngine/Graphics/AssetCache.h"
+#include "VirtualisEngine/Graphics/DirectXCommon.h"
+#include "VirtualisEngine/Platform/InputManager.h"
+#include "VirtualisEngine/Graphics/PipelineManager.h"
 
 #include <algorithm>
 #include <iterator>
@@ -25,7 +25,13 @@ void GameScene::Initialize(DirectXCommon& dx, const AssetCache& assets, Particle
 
 	// カメラの設定はウィンドウ(ビュー)ごとに変えられる。ここを書き換えるだけでゲーム側のカメラが変わる
 	CameraSettings cameraSettings;
-	cameraSettings.pose.translation = { 0.0f, 0.0f, -5.0f };
+
+	cameraSettings.pose.rotation = { 0.23f, 0.785398163f, 0.0f };
+	cameraSettings.pose.translation = { -20.0f, 6.0f, -8.0f };
+
+	cameraSettings.debugPose.rotation = { 0.23f, 0.785398163f, 0.0f };
+	cameraSettings.debugPose.translation = { -20.0f, 6.0f, -8.0f };
+
 	camera_.Initialize(cameraSettings);
 	light_.Initialize(dx);
 
@@ -125,6 +131,8 @@ void GameScene::Update(float deltaTime, InputManager& input, float clientWidth, 
 	clientWidth_ = clientWidth;
 	clientHeight_ = clientHeight;
 
+	// ギズモのハンドルを掴んでいる間は、左ドラッグでカメラを回さない(前フレームの状態でよい)
+	camera_.SetOrbitDragEnabled(!( gizmo_.IsHovering() || gizmo_.IsDragging() ));
 	camera_.Update(input, clientWidth, clientHeight, deltaTime);
 
 	const Matrix4x4& viewProjection = camera_.GetViewProjectionMatrix();
@@ -161,8 +169,104 @@ void GameScene::Update(float deltaTime, InputManager& input, float clientWidth, 
 			}
 		}
 	}
+	UpdateGizmo(input, clientWidth, clientHeight); // ピッキングより先: ハンドルを掴んだクリックで選択を変えないため
 	UpdatePicking(input, clientWidth, clientHeight);
 	BuildDebugLines();
+}
+
+//===================================================================
+// ギズモ
+//===================================================================
+bool GameScene::GetSelectedGizmoTransform(GizmoTransform& out) const
+{
+	out = {};
+	switch ( selection_.kind )
+	{
+		case SceneItemKind::Model:
+		{
+			if ( selection_.index < 0 || selection_.index >= kModelCount || !modelVisible_[selection_.index] )
+			{
+				return false;
+			}
+			const TransformData& t = models_[selection_.index]->transform;
+			out.translate = { t.translate.x, t.translate.y, t.translate.z };
+			out.rotate = { t.rotate.x, t.rotate.y, t.rotate.z };
+			out.scale = { t.scale.x, t.scale.y, t.scale.z };
+			return true;
+		}
+		case SceneItemKind::Shape:
+		{
+			if ( selection_.index < 0 || selection_.index >= static_cast< int >( shapes_.size() ) || !shapes_[selection_.index]->visible )
+			{
+				return false;
+			}
+			const TransformData& t = shapes_[selection_.index]->transform;
+			out.translate = { t.translate.x, t.translate.y, t.translate.z };
+			out.rotate = { t.rotate.x, t.rotate.y, t.rotate.z };
+			out.scale = { t.scale.x, t.scale.y, t.scale.z };
+			return true;
+		}
+		case SceneItemKind::Emitter:
+		{
+			// 3Dエミッタは位置だけ(回転・拡大の値を持たない)。2Dは画面座標なので3Dのギズモでは動かさない
+			if ( selection_.index < 0 || selection_.index >= static_cast< int >( std::size(emitters_) ) )
+			{
+				return false;
+			}
+			const ParticleEmitter& emitter = *emitters_[selection_.index];
+			if ( emitter.GetRenderMode() != ParticleRenderMode::Billboard3D )
+			{
+				return false;
+			}
+			out.translate = emitter.position;
+			out.canRotate = false;
+			out.canScale = false;
+			return true;
+		}
+		default:
+			return false;
+	}
+}
+
+void GameScene::ApplyGizmoTransform(const GizmoTransform& value)
+{
+	auto write = [&](TransformData& t)
+	{
+		t.translate = { value.translate.x, value.translate.y, value.translate.z, t.translate.w };
+		t.rotate = { value.rotate.x, value.rotate.y, value.rotate.z, t.rotate.w };
+		t.scale = { value.scale.x, value.scale.y, value.scale.z, t.scale.w };
+	};
+	switch ( selection_.kind )
+	{
+		case SceneItemKind::Model:
+			write(models_[selection_.index]->transform);
+			break;
+		case SceneItemKind::Shape:
+			write(shapes_[selection_.index]->transform);
+			break;
+		case SceneItemKind::Emitter:
+			emitters_[selection_.index]->position = value.translate;
+			break;
+		default:
+			break;
+	}
+}
+
+void GameScene::UpdateGizmo(InputManager& input, float clientWidth, float clientHeight)
+{
+	// 数字キー(UIの文字入力中は InputManager が無効にしてくれる)
+	gizmo_.HandleToolKeys(input);
+
+	GizmoTransform target;
+	if ( !GetSelectedGizmoTransform(target) )
+	{
+		gizmo_.Release();
+		return;
+	}
+	if ( gizmo_.Update(target, input, camera_.GetViewMatrix(), camera_.GetProjectionMatrix(), clientWidth, clientHeight) )
+	{
+		ApplyGizmoTransform(target);
+	}
 }
 
 std::vector<GameScene::ColliderItem> GameScene::CollectColliders() const
@@ -249,6 +353,12 @@ void GameScene::UpdatePicking(InputManager& input, float clientWidth, float clie
 {
 	hover_ = {};
 
+	// ギズモのハンドルを掴む(掴んでいる)クリックでは、選択を変えない
+	if ( gizmo_.IsHovering() || gizmo_.IsDragging() )
+	{
+		return;
+	}
+
 	// UIの上・右クリックでカメラを回している間は、物を選ばない
 	Vector2 cursor{};
 	if ( input.IsMouseCaptured() || input.PushMouseButton(1) || !input.GetCursorClientPos(cursor) )
@@ -276,15 +386,6 @@ void GameScene::BuildDebugLines()
 		if ( selected )
 		{
 			debug_.ColliderBox(item.collider, item.world, DebugDraw::Color::kSelected);
-
-			// 選択中の物のローカル軸(X赤・Y緑・Z青)。Unityの移動ギズモのように、向きが分かる
-			const Vector3 origin = { item.world.m[3][0], item.world.m[3][1], item.world.m[3][2] };
-			const Vector4* axisColors[3] = { &DebugDraw::Color::kAxisX, &DebugDraw::Color::kAxisY, &DebugDraw::Color::kAxisZ };
-			for ( int axis = 0; axis < 3; ++axis )
-			{
-				const Vector3 dir = Normalize({ item.world.m[axis][0], item.world.m[axis][1], item.world.m[axis][2] });
-				debug_.Arrow(origin, { origin.x + dir.x, origin.y + dir.y, origin.z + dir.z }, *axisColors[axis]);
-			}
 		} else if ( hovered )
 		{
 			debug_.ColliderBox(item.collider, item.world, DebugDraw::Color::kHover);
@@ -292,6 +393,13 @@ void GameScene::BuildDebugLines()
 		{
 			debug_.ColliderBox(item.collider, item.world, item.isEmitter ? DebugDraw::Color::kEmitter : DebugDraw::Color::kCollider);
 		}
+	}
+
+	// 選択中の物のギズモ(矢印・輪・立方体)。コライダーの枠より手前に見えるよう、最後に積む
+	GizmoTransform gizmoTarget;
+	if ( GetSelectedGizmoTransform(gizmoTarget) )
+	{
+		gizmo_.Draw(debug_, gizmoTarget, camera_.GetViewMatrix(), camera_.GetProjectionMatrix());
 	}
 
 	// 終点エミッタを持つ3Dエミッタは、始点 → 終点の矢印を出す(選択中か、コライダー表示がオンのとき)
@@ -433,6 +541,34 @@ void GameScene::DrawHierarchyUi()
 {
 #ifdef USE_IMGUI
 	ImGui::Begin("Hierarchy");
+
+	// ギズモの道具(数字キー 1〜4 でも切り替わる)
+	ImGui::Text("Gizmo");
+	for ( int i = 0; i < 4; ++i )
+	{
+		if ( i > 0 )
+		{
+			ImGui::SameLine();
+		}
+		if ( ImGui::RadioButton(kGizmoToolNames[i], gizmo_.tool == static_cast< GizmoTool >( i )) )
+		{
+			gizmo_.tool = static_cast< GizmoTool >( i );
+			gizmo_.Release();
+		}
+	}
+	ImGui::Checkbox("Snap (or hold Ctrl)", &gizmo_.snapEnabled);
+	if ( gizmo_.snapEnabled )
+	{
+		ImGui::SetNextItemWidth(80.0f);
+		ImGui::DragFloat("Move", &gizmo_.moveSnap, 0.05f, 0.01f, 10.0f);
+		ImGui::SameLine();
+		ImGui::SetNextItemWidth(80.0f);
+		ImGui::DragFloat("Rotate(deg)", &gizmo_.rotateSnapDegrees, 1.0f, 1.0f, 90.0f);
+		ImGui::SameLine();
+		ImGui::SetNextItemWidth(80.0f);
+		ImGui::DragFloat("Scale", &gizmo_.scaleSnap, 0.01f, 0.01f, 5.0f);
+	}
+	ImGui::Separator();
 
 	// 図形を追加する
 	if ( ImGui::Button("+ Add Shape") )

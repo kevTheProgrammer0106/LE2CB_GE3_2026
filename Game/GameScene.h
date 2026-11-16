@@ -4,17 +4,18 @@
 #include <string>
 #include <vector>
 
-#include "Engine/Graphics/BlendModes.h"
-#include "Engine/Graphics/Camera.h"
-#include "Engine/Math/Collider.h"
-#include "Engine/Graphics/DebugDraw.h"
-#include "Engine/Core/IScene.h"
+#include "VirtualisEngine/Graphics/BlendModes.h"
+#include "VirtualisEngine/Graphics/Camera.h"
+#include "VirtualisEngine/Math/Collider.h"
+#include "VirtualisEngine/Graphics/DebugDraw.h"
+#include "VirtualisEngine/Core/IScene.h"
 #include "InstancingObject.h"
-#include "Engine/Graphics/LightBuffer.h"
-#include "Engine/Particle/Particle.h"
-#include "Engine/Graphics/RenderObject.h"
-#include "Engine/Graphics/ShapeObject.h"
-#include "Engine/Graphics/Sprite.h"
+#include "VirtualisEngine/Graphics/LightBuffer.h"
+#include "VirtualisEngine/Particle/Particle.h"
+#include "VirtualisEngine/Graphics/RenderObject.h"
+#include "VirtualisEngine/Graphics/ShapeObject.h"
+#include "VirtualisEngine/Graphics/Sprite.h"
+#include "VirtualisEngine/Tools/TransformGizmo.h"
 
 class DirectXCommon;
 class AssetCache;
@@ -147,6 +148,14 @@ private:
 	SceneSelection PickAt(const Vector2& cursor, float clientWidth, float clientHeight) const;
 	void UpdatePicking(InputManager& input, float clientWidth, float clientHeight);
 	void BuildDebugLines();
+
+	// --- ギズモ(選んだ物を矢印・輪・立方体で動かす。数字キー 1:移動 2:回転 3:拡大 4:全部) ---
+	TransformGizmo gizmo_;
+	/// 選択中の物の位置・回転・拡大をギズモ用の形で取り出す。動かせない物(スプライトなど)は false
+	bool GetSelectedGizmoTransform(GizmoTransform& out) const;
+	/// ギズモが変えた値を、選択中の物へ書き戻す
+	void ApplyGizmoTransform(const GizmoTransform& value);
+	void UpdateGizmo(InputManager& input, float clientWidth, float clientHeight);
 
 	void DrawHierarchyUi();
 	void DrawPropertiesUi();

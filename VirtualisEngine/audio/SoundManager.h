@@ -1,60 +1,58 @@
 #pragma once
-#define _USE_MATH_DEFINES
-#include "DirectXTex.h"
-#include "externals/DirectXTex/d3dx12.h"
+
+#include <wrl.h>
+#include <xaudio2.h>
+
+#include <cstdint>
+#include <string>
 #include <vector>
 
-#include <math.h>
-
-#include <fstream>
-#include <sstream>
-
-#include<wrl.h>
-
-#include<xaudio2.h>
-#pragma comment(lib,"xaudio2.lib")
-
-//チャンクヘッダ
-struct ChunkHeader
-{
-	char id[4]; // チャンクのID
-	int32_t size; // チャンクのサイズ
-};
-
-// RIFFヘッダチャンク
-struct RiffHeader
-{
-	ChunkHeader chunk; // チャンクヘッダ
-	char type[4]; // RIFFのタイプ
-};
-
-//FMTチャンク
-struct FormatChunk
-{
-	ChunkHeader chunk; // チャンクヘッダ
-	WAVEFORMATEX fmt; // WAVEフォーマット
-};
-
-//音声データ
+/// 読み込んだ音声データ(wavの波形そのもの)。メモリは vector が持つので、解放を忘れてもリークしない
 struct SoundData
 {
-	// 波形フォーマット
-	WAVEFORMATEX wfex;
-	// バッファの先頭アドレス
-	BYTE* pBuffer;
-	// バッファのサイズ
-	unsigned int bufferSize;
+	WAVEFORMATEX format{};
+	std::vector<BYTE> samples;
+
+	bool IsValid() const
+	{
+		return !samples.empty();
+	}
 };
 
-SoundData SoundLoadWave(const char* fileName);
+/// <summary>
+/// 音の再生。XAudio2のエンジンとマスターボイスを持つ。
+///
+///   SoundManager sound;
+///   sound.Initialize();
+///   SoundData jump = sound.LoadWave("resources/jump.wav");
+///   IXAudio2SourceVoice* voice = sound.Play(jump);   // 鳴らした音のボイス。止めたいときに Stop に渡す
+///   sound.Stop(voice);
+///
+/// SoundData を使っている再生が終わるまで、SoundData を破棄しないこと。
+/// COM(CoInitializeEx)はWinMainで初期化済みの前提
+/// </summary>
+class SoundManager
+{
+public:
+	SoundManager() = default;
+	SoundManager(const SoundManager&) = delete;
+	SoundManager& operator=(const SoundManager&) = delete;
+	~SoundManager();
 
-//音声データ解放
-void SoundUnload(SoundData* soundData);
+	/// XAudio2のエンジンとマスターボイスを作る。失敗したら false(音が出ないだけでゲームは続けられる)
+	bool Initialize();
+	void Shutdown();
 
-// 音声再生
-void SoundPlayWave(IXAudio2* xAudio2, const SoundData& soundData, IXAudio2SourceVoice*& pSourceVoice);
+	/// .wav(PCM)を読み込む。読めなかったら IsValid() が false の SoundData を返す
+	static SoundData LoadWave(const std::string& filePath);
 
-void SoundStopWave(IXAudio2SourceVoice*& pSourceVoice);
+	/// 再生する。同じ音を重ねて鳴らせる(1回ごとに新しいボイスを作る)。
+	/// 戻り値は Stop() に渡すためのボイス。ループしない音は、鳴り終わっても Stop() で片付けること
+	IXAudio2SourceVoice* Play(const SoundData& sound, bool loop = false, float volume = 1.0f);
+	/// 止めてボイスを破棄し、ポインタを nullptr にする(nullptrを渡しても何もしない)
+	static void Stop(IXAudio2SourceVoice*& voice);
 
-class SoundManager{};
-
+private:
+	Microsoft::WRL::ComPtr<IXAudio2> xAudio2_;
+	IXAudio2MasteringVoice* masteringVoice_ = nullptr;
+};

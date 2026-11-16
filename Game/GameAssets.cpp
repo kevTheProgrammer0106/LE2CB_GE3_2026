@@ -1,7 +1,7 @@
 #include "GameAssets.h"
 
-#include "Engine/Graphics/AssetCache.h"
-#include "Engine/Graphics/ShapeGeometry.h"
+#include "VirtualisEngine/Graphics/AssetCache.h"
+#include "VirtualisEngine/Graphics/ShapeGeometry.h"
 
 namespace GameAssets
 {

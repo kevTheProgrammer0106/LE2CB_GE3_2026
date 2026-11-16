@@ -1,14 +1,14 @@
 #include <Windows.h>
 #include <cassert>
 
-#include "Engine/Core/Application.h"
-#include "Engine/Core/CrashHandler.h"
-#include "Engine/Core/D3DResourceLeakChecker.h"
+#include "VirtualisEngine/Core/Application.h"
+#include "VirtualisEngine/Core/CrashHandler.h"
+#include "VirtualisEngine/Core/D3DResourceLeakChecker.h"
 #include "GameAssets.h"
 #include "GameScene.h"
-#include "Engine/Platform/InputManager.h"
-#include "Engine/Tools/ParticleEditor.h"
-#include "Engine/Particle/ParticleLibrary.h"
+#include "VirtualisEngine/Platform/InputManager.h"
+#include "VirtualisEngine/Tools/ParticleEditor.h"
+#include "VirtualisEngine/Particle/ParticleLibrary.h"
 
 //===================================================================
 // エントリーポイント
@@ -37,7 +37,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPSTR, _In
 		// ---- 土台: DirectX・パイプライン・ゲームウィンドウ ----
 		Application app;
 		ApplicationDesc desc;
-		desc.mainWindow.title = L"GameEngine";
+
+		desc.mainWindow.title = L"LE2C_29_メンドーザ_ケビン_ラルフ_パレルモ";
 		desc.mainWindow.width = 1280;
 		desc.mainWindow.height = 720;
 		desc.targetFps = 60;

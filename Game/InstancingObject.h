@@ -4,9 +4,9 @@
 #include <cstdint>
 #include <d3d12.h>
 
-#include "Engine/Math/Collider.h"
-#include "Engine/Graphics/ResourceObject.h"
-#include "Engine/Math/WorldTransform.h"
+#include "VirtualisEngine/Math/Collider.h"
+#include "VirtualisEngine/Graphics/ResourceObject.h"
+#include "VirtualisEngine/Math/WorldTransform.h"
 
 class DirectXCommon;
 class PipelineManager;

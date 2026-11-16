@@ -1,149 +1,149 @@
-#include "SoundManager.h"
+#include "VirtualisEngine/Audio/SoundManager.h"
 
-SoundData SoundLoadWave(const char* fileName)
+#include <cstring>
+#include <fstream>
+
+#include "VirtualisEngine/Core/Logger.h"
+
+#pragma comment(lib, "xaudio2.lib")
+
+namespace
 {
-	//ファイル入力ストリームのインスタンス
-	std::ifstream file;
-	// .wav ファイルをバイナリモードで開く
-	file.open(fileName, std::ios_base::binary);
-	// ファイルが開けなかった場合はエラー
-	assert(file.is_open());
-
-	// RIFFヘッダーの読み込み
-	RiffHeader riff;
-	file.read((char*)&riff, sizeof(riff));
-	// ファイルがRIFFかチェック
-	if (strncmp(riff.chunk.id, "RIFF", 4) != 0)
+	// RIFFファイルの「チャンク」の頭(名前4文字 + サイズ)
+	struct ChunkHeader
 	{
-		assert(0 && "Not a RIFF file");
-	}
-	// WAVEフォーマットかチェック
-	if (strncmp(riff.type, "WAVE", 4) != 0)
+		char id[4];
+		int32_t size;
+	};
+
+	// RIFFヘッダ(先頭のチャンク + "WAVE")
+	struct RiffHeader
 	{
-		assert(0 && "Not a WAV file");
-	}
-
-	//Formatチャンクの読み込み
-	FormatChunk format = {};
-
-	file.read((char*)&format, sizeof(ChunkHeader));
-	if (strncmp(format.chunk.id, "fmt ", 4) != 0)
-	{
-		assert(0 && "Not a fmt chunk");
-	}
-
-	//チャンク本体の読み込み
-	assert(format.chunk.size <= sizeof(format.fmt));
-	file.read((char*)&format.fmt, format.chunk.size);
-
-	// Dataチャンクの読み込み
-	ChunkHeader data;
-	file.read((char*)&data, sizeof(data));
-	// JUNKチャンクを検出した場合
-	if (strncmp(data.id, "JUNK", 4) == 0)
-	{
-		// JUNKチャンクのサイズ分だけ読み飛ばす
-		file.seekg(data.size, std::ios_base::cur);
-		// Dataチャンクを再度読み込む
-		file.read((char*)&data, sizeof(data));
-	}
-
-	if (strncmp(data.id, "data", 4) != 0)
-	{
-		assert(0 && "Not a data chunk");
-	}
-
-	// Dataチャンクのデータ部(波形データ)の読み込み
-	char* pBuffer = new char[data.size];
-	file.read(pBuffer, data.size);
-
-	// Waveファイルを閉じる
-	file.close();
-
-	// returnする為の音声データ
-	SoundData soundData = {};
-
-	soundData.wfex = format.fmt;
-	soundData.pBuffer = reinterpret_cast<BYTE*>(pBuffer);
-	soundData.bufferSize = data.size;
-
-	return soundData;
-}
-void SoundUnload(SoundData* soundData)
-{
-	// バッファのメモリを解放
-	delete[] soundData->pBuffer;
-
-	soundData->pBuffer = 0;
-	soundData->bufferSize = 0;
-	soundData->wfex = {};
+		ChunkHeader chunk;
+		char type[4];
+	};
 }
 
-void SoundPlayWave( IXAudio2* xAudio2, const SoundData& soundData, IXAudio2SourceVoice*& pSourceVoice)
+SoundManager::~SoundManager()
 {
-	assert(xAudio2 != nullptr);
-	assert(soundData.pBuffer != nullptr);
+	Shutdown();
+}
 
-	// 同じボイスが残っている場合は、先に破棄する
-	if ( pSourceVoice != nullptr )
+bool SoundManager::Initialize()
+{
+	HRESULT hr = XAudio2Create(&xAudio2_, 0, XAUDIO2_DEFAULT_PROCESSOR);
+	if ( FAILED(hr) )
 	{
-		pSourceVoice->Stop(0);
-		pSourceVoice->FlushSourceBuffers();
-		pSourceVoice->DestroyVoice();
-		pSourceVoice = nullptr;
+		Logger::Log("[SoundManager] XAudio2Create failed. Sound is disabled.\n");
+		xAudio2_.Reset();
+		return false;
+	}
+	hr = xAudio2_->CreateMasteringVoice(&masteringVoice_);
+	if ( FAILED(hr) )
+	{
+		Logger::Log("[SoundManager] CreateMasteringVoice failed. Sound is disabled.\n");
+		xAudio2_.Reset();
+		return false;
+	}
+	return true;
+}
+
+void SoundManager::Shutdown()
+{
+	if ( masteringVoice_ )
+	{
+		masteringVoice_->DestroyVoice();
+		masteringVoice_ = nullptr;
+	}
+	xAudio2_.Reset();
+}
+
+SoundData SoundManager::LoadWave(const std::string& filePath)
+{
+	SoundData sound;
+
+	std::ifstream file(filePath, std::ios_base::binary);
+	if ( !file.is_open() )
+	{
+		Logger::Log("[SoundManager] Cannot open: " + filePath + "\n");
+		return sound;
 	}
 
-	// 音声データのフォーマットに合わせてボイスを生成する
-	HRESULT result =
-		xAudio2->CreateSourceVoice(&pSourceVoice, &soundData.wfex);
-
-	assert(SUCCEEDED(result));
-	if ( FAILED(result) )
+	// RIFFヘッダー(RIFF/WAVEかを確かめる)
+	RiffHeader riff{};
+	file.read(reinterpret_cast< char* >( &riff ), sizeof(riff));
+	if ( !file || std::strncmp(riff.chunk.id, "RIFF", 4) != 0 || std::strncmp(riff.type, "WAVE", 4) != 0 )
 	{
-		pSourceVoice = nullptr;
-		return;
+		Logger::Log("[SoundManager] Not a WAV file: " + filePath + "\n");
+		return sound;
 	}
+
+	// fmtチャンク(波形のフォーマット)
+	ChunkHeader fmtHeader{};
+	file.read(reinterpret_cast< char* >( &fmtHeader ), sizeof(fmtHeader));
+	if ( !file || std::strncmp(fmtHeader.id, "fmt ", 4) != 0 || fmtHeader.size < 16 ||
+		fmtHeader.size > static_cast< int32_t >( sizeof(WAVEFORMATEX) ) )
+	{
+		Logger::Log("[SoundManager] Unsupported fmt chunk: " + filePath + "\n");
+		return sound;
+	}
+	file.read(reinterpret_cast< char* >( &sound.format ), fmtHeader.size);
+
+	// dataチャンクまで読み進める(JUNKなど、関係ないチャンクは読み飛ばす)
+	ChunkHeader dataHeader{};
+	while ( file.read(reinterpret_cast< char* >( &dataHeader ), sizeof(dataHeader)) )
+	{
+		if ( std::strncmp(dataHeader.id, "data", 4) == 0 )
+		{
+			sound.samples.resize(static_cast< size_t >( dataHeader.size ));
+			file.read(reinterpret_cast< char* >( sound.samples.data() ), dataHeader.size);
+			return sound;
+		}
+		file.seekg(dataHeader.size, std::ios_base::cur);
+	}
+
+	Logger::Log("[SoundManager] No data chunk: " + filePath + "\n");
+	return SoundData{};
+}
+
+IXAudio2SourceVoice* SoundManager::Play(const SoundData& sound, bool loop, float volume)
+{
+	if ( !xAudio2_ || !sound.IsValid() )
+	{
+		return nullptr;
+	}
+
+	// 音声データのフォーマットに合わせてボイスを作る
+	IXAudio2SourceVoice* voice = nullptr;
+	if ( FAILED(xAudio2_->CreateSourceVoice(&voice, &sound.format)) )
+	{
+		return nullptr;
+	}
+	voice->SetVolume(volume);
 
 	// 再生する波形データを設定する
 	XAUDIO2_BUFFER buffer{};
-	buffer.pAudioData = soundData.pBuffer;
-	buffer.AudioBytes = soundData.bufferSize;
+	buffer.pAudioData = sound.samples.data();
+	buffer.AudioBytes = static_cast< UINT32 >( sound.samples.size() );
 	buffer.Flags = XAUDIO2_END_OF_STREAM;
+	buffer.LoopCount = loop ? XAUDIO2_LOOP_INFINITE : 0;
 
-	result = pSourceVoice->SubmitSourceBuffer(&buffer);
-	if ( FAILED(result) )
+	if ( FAILED(voice->SubmitSourceBuffer(&buffer)) || FAILED(voice->Start(0)) )
 	{
-		pSourceVoice->DestroyVoice();
-		pSourceVoice = nullptr;
-		return;
+		voice->DestroyVoice();
+		return nullptr;
 	}
-
-	// 音声の再生を開始する
-	result = pSourceVoice->Start(0);
-	if ( FAILED(result) )
-	{
-		pSourceVoice->DestroyVoice();
-		pSourceVoice = nullptr;
-	}
+	return voice;
 }
 
-void SoundStopWave(IXAudio2SourceVoice*& pSourceVoice)
+void SoundManager::Stop(IXAudio2SourceVoice*& voice)
 {
-	// ボイスが存在しなければ何もしない
-	if ( pSourceVoice == nullptr )
+	if ( voice == nullptr )
 	{
 		return;
 	}
-
-	// 再生を停止する
-	HRESULT result = pSourceVoice->Stop(0);
-	assert(SUCCEEDED(result));
-
-	// 再生待ちのバッファをキューから削除する
-	result = pSourceVoice->FlushSourceBuffers();
-	assert(SUCCEEDED(result));
-
-	// ボイスを破棄して、ポインタを無効化する
-	pSourceVoice->DestroyVoice();
-	pSourceVoice = nullptr;
+	voice->Stop(0);
+	voice->FlushSourceBuffers();
+	voice->DestroyVoice();
+	voice = nullptr;
 }

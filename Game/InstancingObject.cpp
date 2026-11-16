@@ -1,14 +1,14 @@
 #define NOMINMAX
 #include "InstancingObject.h"
-#include "Engine/Graphics/GpuBuffers.h"
+#include "VirtualisEngine/Graphics/GpuBuffers.h"
 
 #include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstring>
 
-#include "Engine/Graphics/DirectXCommon.h"
-#include "Engine/Graphics/PipelineManager.h"
+#include "VirtualisEngine/Graphics/DirectXCommon.h"
+#include "VirtualisEngine/Graphics/PipelineManager.h"
 
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
